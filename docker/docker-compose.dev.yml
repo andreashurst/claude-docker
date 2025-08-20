@@ -1,0 +1,69 @@
+services:
+  claude-dev:
+    # Use pre-built image from Docker Hub
+    image: andreashurst/claude-docker:latest-dev
+    # Uncomment below for local development:
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile.dev
+    
+    working_dir: /var/www/html
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "claude", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Network configuration
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    
+    # Volume mounts with proper permissions
+    volumes:
+      - ${PWD}:/var/www/html:cached
+      - claude-dev-cache:/home/claude/.cache
+      - claude-dev-npm:/home/claude/.npm
+      - claude-dev-config:/home/claude/.config
+    
+    # Environment variables
+    environment:
+      - NODE_ENV=development
+      - NPM_CONFIG_CACHE=/home/claude/.cache/npm
+      - NPM_CONFIG_FETCH_TIMEOUT=300000
+      - NPM_CONFIG_YES=true
+      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
+    
+    # Startup command
+    command: ["/usr/local/bin/entrypoint.sh"]
+    
+    # Interactive terminal
+    stdin_open: true
+    tty: true
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Restart policy: no automatic restart after reboot
+    restart: "no"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+volumes:
+  claude-dev-cache:
+    driver: local
+  claude-dev-npm:
+    driver: local
+  claude-dev-config:
+    driver: local

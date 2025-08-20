@@ -1,0 +1,73 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@anthropic-ai/mcp-server-playwright"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
+    },
+    "git": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-git", "--repository", "/var/www/html"]
+    }
+  },
+  "environmentInfo": {
+    "hostNetworking": {
+      "hostGateway": "host.docker.internal",
+      "description": "Use host.docker.internal to access services running on the host system",
+      "configuredFrontendUrl": "{{FRONTEND_URL}}",
+      "projectPath": "{{PROJECT_PATH}}",
+      "commonPorts": {
+        "frontend": {
+          "configured": "http://{{FRONTEND_URL}}",
+          "react": "http://host.docker.internal:3000",
+          "vite": "http://host.docker.internal:5173", 
+          "nextjs": "http://host.docker.internal:3000",
+          "angular": "http://host.docker.internal:4200",
+          "vue": "http://host.docker.internal:8080",
+          "webpack": "http://host.docker.internal:8080"
+        },
+        "backend": {
+          "express": "http://host.docker.internal:8000",
+          "django": "http://host.docker.internal:8000",
+          "flask": "http://host.docker.internal:5000",
+          "rails": "http://host.docker.internal:3000",
+          "fastapi": "http://host.docker.internal:8000",
+          "laravel": "http://host.docker.internal:8000"
+        },
+        "databases": {
+          "postgresql": "postgresql://user:pass@host.docker.internal:5432/db",
+          "mysql": "mysql://user:pass@host.docker.internal:3306/db",
+          "mongodb": "mongodb://host.docker.internal:27017/db",
+          "redis": "redis://host.docker.internal:6379",
+          "elasticsearch": "http://host.docker.internal:9200"
+        }
+      },
+      "testCommands": [
+        "ping host.docker.internal",
+        "nc -zv host.docker.internal {{FRONTEND_PORT}}",
+        "curl -I http://{{FRONTEND_URL}}",
+        "test-host-connectivity",
+        "test-port {{FRONTEND_PORT}}"
+      ],
+      "documentation": "/var/www/html/docs/HOST_NETWORKING.md"
+    },
+    "container": {
+      "workingDirectory": "/var/www/html",
+      "user": "claude (UID 1000)",
+      "runtimes": ["node", "deno", "python3"],
+      "tools": ["git", "curl", "playwright", "sqlite3", "test-host-connectivity", "test-port"],
+      "volumes": {
+        "project": "{{PROJECT_PATH}} mounted to /var/www/html",
+        "cache": "/home/claude/.cache (persistent)",
+        "config": "/home/claude/.config (persistent)",
+        "playwright": "/home/claude/.cache/ms-playwright (persistent)"
+      }
+    }
+  }
+}

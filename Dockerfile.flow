@@ -1,0 +1,95 @@
+FROM node:22-slim
+
+# Update package index and install dependencies
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    unzip \
+    python3 \
+    python3-pip \
+    build-essential \
+    sqlite3 \
+    libsqlite3-dev \
+    ca-certificates \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -g 1010 claude && \
+    useradd -d /home/claude -s /bin/bash -u 1010 -g claude claude
+
+# Install Deno as claude user
+USER claude
+WORKDIR /home/claude
+RUN curl -fsSL https://deno.land/install.sh | sh
+
+# Switch back to root for global installations
+USER root
+
+# Install global packages
+RUN npm install -g pnpm @anthropic-ai/claude-code
+
+# Install Playwright and browsers as root
+RUN npm install -g playwright@latest && \
+    npx playwright install --with-deps chromium firefox webkit && \
+    npx playwright install-deps
+
+# Install Claude Flow (better-sqlite3 is included as dependency)
+RUN npm install -g claude-flow@latest
+
+# Install MCP servers for Claude Code integration
+RUN npm install -g @playwright/mcp
+RUN npm install -g @modelcontextprotocol/server-filesystem
+RUN pip3 install mcp-server-git
+
+# Copy entrypoint script
+COPY docker/entrypoint-flow.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Create Playwright directories for claude user and set permissions
+RUN mkdir -p /home/claude/.cache/ms-playwright && \
+    cp -r /root/.cache/ms-playwright/* /home/claude/.cache/ms-playwright/ || true && \
+    chown -R claude:claude /home/claude/.cache/ms-playwright
+
+# Create config directory for claude user
+RUN mkdir -p /home/claude/.config/claude && \
+    chown -R claude:claude /home/claude/.config
+
+# Create network testing scripts
+RUN echo '#!/bin/bash\n\
+echo "Testing host.docker.internal connectivity..."\n\
+ping -c 3 host.docker.internal\n\
+echo ""\n\
+echo "Testing common ports..."\n\
+for port in 3000 5173 8000 5000 5432 3306 27017; do\n\
+  timeout 3 bash -c "</dev/tcp/host.docker.internal/$port" && echo "Port $port: OPEN" || echo "Port $port: CLOSED"\n\
+done' > /usr/local/bin/test-host-connectivity && \
+    chmod +x /usr/local/bin/test-host-connectivity
+
+RUN echo '#!/bin/bash\n\
+if [ -z "$1" ]; then\n\
+  echo "Usage: test-port PORT"\n\
+  echo "Example: test-port 3000"\n\
+  exit 1\n\
+fi\n\
+PORT=$1\n\
+echo "Testing host.docker.internal:$PORT..."\n\
+timeout 5 bash -c "</dev/tcp/host.docker.internal/$PORT" && echo "Port $PORT: OPEN" || echo "Port $PORT: CLOSED"' > /usr/local/bin/test-port && \
+    chmod +x /usr/local/bin/test-port
+
+# Set Playwright browser path for claude user
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Switch back to claude user
+USER claude
+
+# Set environment
+ENV PATH="/home/claude/.deno/bin:$PATH"
+ENV DENO_INSTALL="/home/claude/.deno"
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
