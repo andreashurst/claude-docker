@@ -11,8 +11,8 @@ RUN apk update && apk upgrade && \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
-RUN addgroup -g 1000 claude && \
-    adduser -D -s /bin/bash -u 1000 -G claude claude
+RUN addgroup -g 1010 claude && \
+    adduser -D -s /bin/bash -u 1010 -G claude claude
 
 # Install Claude Code globally
 RUN npm install -g @anthropic-ai/claude-code
