@@ -59,7 +59,7 @@
     },
     "container": {
       "workingDirectory": "/var/www/html",
-      "user": "claude (UID 1000)",
+      "user": "claude (UID 1010)",
       "runtimes": ["node", "deno", "python3"],
       "tools": ["git", "curl", "playwright", "sqlite3", "test-host-connectivity", "test-port"],
       "volumes": {

@@ -820,9 +820,11 @@ When reporting issues, please include:
 
 ```bash
 # Get started now
-git clone <your-repo-url>
-cd claude-development-environment
-./install-claude-dev.sh
+git clone https://github.com/andreashurst/claude-docker.git
+cd claude-docker
+./bin/claude-dev    # or ./bin/claude-flow
 ```
+
+
 
 **Happy Coding! 🚀**

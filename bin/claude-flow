@@ -1,0 +1,104 @@
+#!/bin/bash
+# Standalone claude-flow script using Docker Hub image
+
+# Check if Docker is running
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker is not running. Please start Docker and try again."
+    exit 1
+fi
+
+# Get current directory
+CURRENT_DIR=$(pwd)
+
+# Create MCP configuration if it doesn't exist
+mkdir -p /tmp/claude-config
+cat > /tmp/claude-config/claude_desktop_config.json << 'EOF'
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
+    },
+    "playwright": {
+      "command": "npx", 
+      "args": ["@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
+      }
+    },
+    "git": {
+      "command": "python3",
+      "args": ["-m", "mcp_server_git", "--repository", "/var/www/html"]
+    }
+  }
+}
+EOF
+
+# Create temporary docker-compose file
+cat > /tmp/claude-flow-compose.yml << EOF
+services:
+  claude-flow:
+    image: andreashurst/claude-docker:latest-flow
+    working_dir: /var/www/html
+    
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    
+    volumes:
+      - ${CURRENT_DIR}:/var/www/html:cached
+      - claude-flow-cache:/home/claude/.cache
+      - claude-flow-npm:/home/claude/.npm
+      - claude-flow-config:/home/claude/.config
+      - claude-flow-deno:/home/claude/.deno
+      - claude-flow-playwright:/home/claude/.cache/ms-playwright
+      - /tmp/claude-config/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
+    
+    environment:
+      - NODE_ENV=development
+      - NPM_CONFIG_CACHE=/home/claude/.cache/npm
+      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
+      - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
+      - PATH="/home/claude/.deno/bin:\$PATH"
+      - DENO_INSTALL="/home/claude/.deno"
+      - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+      - FRONTEND_URL=\${FRONTEND_URL:-localhost:3000}
+      - PROJECT_PATH=${CURRENT_DIR}
+      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
+    
+    stdin_open: true
+    tty: true
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    restart: "no"
+    
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+
+volumes:
+  claude-flow-cache:
+    driver: local
+  claude-flow-npm:
+    driver: local
+  claude-flow-config:
+    driver: local
+  claude-flow-deno:
+    driver: local
+  claude-flow-playwright:
+    driver: local
+EOF
+
+# Run with temporary compose file
+docker compose -f /tmp/claude-flow-compose.yml up "$@"
+
+# Cleanup
+rm -f /tmp/claude-flow-compose.yml
+rm -f /tmp/claude-config/claude_desktop_config.json
