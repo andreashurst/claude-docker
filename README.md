@@ -6,14 +6,14 @@ A modern Docker-based development environment for [Claude Code](https://docs.ant
 
 ```bash
 # Clone repository
-git clone <your-repo-url>
-cd claude-development-environment
+git clone https://github.com/andreashurst/claude-docker.git
+cd claude-docker
 
 # Install both environments
 chmod +x install.sh
 ./install.sh
 
-# Start developing
+# Start developing from anywhere
 claude-dev    # Basic development environment
 claude-flow   # Advanced environment with Claude Flow
 ```
@@ -80,45 +80,41 @@ docker info
 ### Automatic Installation
 
 The installer handles everything automatically:
-- ✅ System requirements validation
-- ✅ Docker environment setup
-- ✅ Container configuration with security hardening
-- ✅ Global command installation
-- ✅ Network and DNS configuration
-- ✅ Cleanup of old installations
-- ✅ Health checks and monitoring
+- ✅ Docker installation verification
+- ✅ Docker Hub image download
+- ✅ Global command installation (`claude-dev`, `claude-flow`)
+- ✅ Executable permissions setup
+- ✅ System PATH configuration
 
 ### Single Installation Script
 
 ```bash
-# Download and install both environments
+# Clone and install
+git clone https://github.com/andreashurst/claude-docker.git
+cd claude-docker
 chmod +x install.sh
 ./install.sh
 ```
 
 **Features:**
 - Color-coded output for better visibility
-- Comprehensive error handling
-- Input validation and security checks
-- Automatic dependency verification
-- Clean installation process
+- Docker health checks
+- Automatic image pulling from Docker Hub
+- Global command installation
+- Works from any directory after installation
 
 ### Manual Installation
 
 If you prefer manual setup:
 
 ```bash
-# Create configuration directory
-mkdir -p ~/.config/claude
+# Pull Docker images
+docker pull andreashurst/claude-docker:latest-dev
+docker pull andreashurst/claude-docker:latest-flow
 
-# Copy compose files
-cp docker/docker-compose.dev.yml ~/.config/claude/
-cp docker/docker-compose.flow.yml ~/.config/claude/
-
-# Install scripts globally (automatically done by install.sh)
-# Scripts are OS-specific and installed based on Docker Compose version:
-# - Docker Compose v2: scripts/claude-dev-v2 -> claude-dev
-# - Docker Compose v1: scripts/claude-dev-v1 -> claude-dev
+# Install commands globally
+sudo cp bin/claude-dev /usr/local/bin/claude-dev
+sudo cp bin/claude-flow /usr/local/bin/claude-flow
 sudo chmod +x /usr/local/bin/claude-*
 ```
 
@@ -306,7 +302,7 @@ open -a Docker  # macOS
 ```bash
 # Error: Permission denied
 # Solution: Run installer with proper permissions
-sudo ./install-claude-dev.sh
+sudo ./install.sh
 ```
 
 **3. Network Connection Issues**
@@ -404,12 +400,12 @@ services:
 
 1. **Add to your project repository:**
    ```bash
-   # Copy installer files to your repo
-   cp install-claude-dev.sh your-project/
-   cp install-claude-flow.sh your-project/
+   # Copy installer to your repo
+   cp install.sh your-project/
+   cp -r bin/ your-project/
 
    # Commit and push
-   git add install-claude-*.sh
+   git add install.sh bin/
    git commit -m "Add Claude development environment"
    git push
    ```
@@ -419,7 +415,10 @@ services:
    # Each team member runs:
    git clone your-project
    cd your-project
-   ./install-claude-dev.sh     # or install-claude-flow.sh
+   ./install.sh
+
+   # Then use from anywhere:
+   claude-dev     # or claude-flow
    ```
 
 ### Standardized Workflows
@@ -544,8 +543,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup Claude Environment
         run: |
-          chmod +x install-claude-dev.sh
-          ./install-claude-dev.sh
+          chmod +x install.sh
+          ./install.sh
       - name: Run Claude Analysis
         run: |
           echo "localhost:3000" | echo "${{ github.workspace }}" | claude-dev
@@ -723,18 +722,16 @@ docker system prune  # Clean old logs
 **Test Scenarios:**
 ```bash
 # Clean installation
-./install-claude-dev.sh
+./install.sh
 
-# Upgrade installation
-./install-claude-dev.sh  # Run twice
-
-# Parallel installation
-./install-claude-dev.sh && ./install-claude-flow.sh
-
-# Container interactions
+# Test both environments
 claude-dev &
 claude-flow &
 docker ps  # Both should run simultaneously
+
+# Test uninstall and reinstall
+sudo rm /usr/local/bin/claude-*
+./install.sh
 ```
 
 ### Code Style
@@ -822,7 +819,10 @@ When reporting issues, please include:
 # Get started now
 git clone https://github.com/andreashurst/claude-docker.git
 cd claude-docker
-./bin/claude-dev    # or ./bin/claude-flow
+./install.sh
+
+# Then use from anywhere:
+claude-dev    # or claude-flow
 ```
 
 
