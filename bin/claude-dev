@@ -7,11 +7,14 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
-# Get current directory
+# Get current directory and create project-specific naming
 CURRENT_DIR=$(pwd)
+PROJECT_BASE=$(basename "$CURRENT_DIR")
+COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
 
-# Create temporary docker-compose file
-cat > /tmp/claude-dev-compose.yml << EOF
+# Create project-specific docker-compose file
+COMPOSE_FILE="/tmp/claude-dev-${PROJECT_BASE}-compose.yml"
+cat > "$COMPOSE_FILE" << EOF
 services:
   claude-dev:
     image: andreashurst/claude-docker:latest-dev
@@ -19,9 +22,6 @@ services:
     
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
@@ -55,8 +55,17 @@ volumes:
     driver: local
 EOF
 
-# Run with temporary compose file
-docker compose -f /tmp/claude-dev-compose.yml up "$@"
+# Check if container is already running, if not start it
+if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-dev; then
+    echo "Starting ${COMPOSE_PROJECT_NAME}..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+else
+    echo "Container ${COMPOSE_PROJECT_NAME} already running..."
+fi
 
-# Cleanup
-rm -f /tmp/claude-dev-compose.yml
+# Attach to container interactively
+docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
+
+# Stop container when exiting (but don't remove it)
+docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop
+rm -f "$COMPOSE_FILE"
