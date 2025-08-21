@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -euo pipefail
+# set -euo pipefail
 
 # Color codes for output
 readonly RED='\033[0;31m'
