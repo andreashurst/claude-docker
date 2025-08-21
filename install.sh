@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+#set -euo pipefail
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -29,39 +29,39 @@ log_error() {
 # Check if Docker is installed and running
 check_docker() {
     log_info "Checking Docker installation..."
-    
+
     if ! command -v docker &> /dev/null; then
         log_error "Docker is not installed. Please install Docker first."
         exit 1
     fi
-    
+
     if ! docker info &> /dev/null; then
         log_error "Docker is not running. Please start Docker and try again."
         exit 1
     fi
-    
+
     log_success "Docker is installed and running"
 }
 
 # Install global commands
 install_commands() {
     log_info "Installing global commands..."
-    
+
     # Copy scripts to /usr/local/bin
     sudo cp bin/claude-dev /usr/local/bin/claude-dev
     sudo cp bin/claude-flow /usr/local/bin/claude-flow
     sudo chmod +x /usr/local/bin/claude-dev /usr/local/bin/claude-flow
-    
+
     log_success "Global commands installed: claude-dev, claude-flow"
 }
 
 # Pull Docker images
 pull_images() {
     log_info "Pulling Docker images from Docker Hub..."
-    
+
     docker pull andreashurst/claude-docker:latest-dev
     docker pull andreashurst/claude-docker:latest-flow
-    
+
     log_success "Docker images pulled successfully"
 }
 
@@ -70,11 +70,11 @@ main() {
     echo "🚀 Claude Docker Environment Installer"
     echo "======================================"
     echo ""
-    
+
     check_docker
     install_commands
     pull_images
-    
+
     echo ""
     log_success "Installation completed successfully!"
     echo ""
