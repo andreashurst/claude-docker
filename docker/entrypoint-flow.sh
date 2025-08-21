@@ -1,11 +1,14 @@
 #!/bin/bash
 set -e
 
+# Set PATH to include Deno
+export PATH="/home/claude/.deno/bin:$PATH"
+
 echo 'Claude Flow Environment Starting...'
 echo '================================='
 echo 'Node.js version:' && node --version
 echo 'NPM version:' && npm --version
-echo 'Deno version:' && deno --version
+echo 'Deno version:' && deno --version 2>/dev/null || echo 'deno: not found in PATH'
 echo 'Claude Code version:' && claude --version
 echo 'Claude Flow version:' && claude-flow --version 2>/dev/null || echo 'claude-flow: installed'
 echo 'Playwright version:' && playwright --version
@@ -43,7 +46,7 @@ echo ''
 echo 'MCP Servers Status:'
 echo '==================='
 echo '✓ Playwright MCP: @playwright/mcp'
-echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem' 
+echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem'
 echo '✓ Git MCP: mcp-server-git (Python)'
 echo ''
 
