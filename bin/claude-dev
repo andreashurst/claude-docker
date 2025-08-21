@@ -64,7 +64,7 @@ else
 fi
 
 # Attach to container interactively
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
+docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev /usr/local/bin/entrypoint.sh
 
 # Stop container when exiting (but don't remove it)
 docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop
