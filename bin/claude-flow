@@ -7,12 +7,15 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
-# Get current directory
+# Get current directory and create project-specific naming
 CURRENT_DIR=$(pwd)
+PROJECT_BASE=$(basename "$CURRENT_DIR")
+COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
 
-# Create MCP configuration if it doesn't exist
-mkdir -p /tmp/claude-config
-cat > /tmp/claude-config/claude_desktop_config.json << 'EOF'
+# Create project-specific MCP configuration
+MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
+mkdir -p "$MCP_CONFIG_DIR"
+cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
 {
   "mcpServers": {
     "filesystem": {
@@ -34,8 +37,9 @@ cat > /tmp/claude-config/claude_desktop_config.json << 'EOF'
 }
 EOF
 
-# Create temporary docker-compose file
-cat > /tmp/claude-flow-compose.yml << EOF
+# Create project-specific docker-compose file
+COMPOSE_FILE="/tmp/claude-flow-${PROJECT_BASE}-compose.yml"
+cat > "$COMPOSE_FILE" << EOF
 services:
   claude-flow:
     image: andreashurst/claude-docker:latest-flow
@@ -51,7 +55,7 @@ services:
       - claude-flow-config:/home/claude/.config
       - claude-flow-deno:/home/claude/.deno
       - claude-flow-playwright:/home/claude/.cache/ms-playwright
-      - /tmp/claude-config/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
+      - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
     
     environment:
       - NODE_ENV=development
