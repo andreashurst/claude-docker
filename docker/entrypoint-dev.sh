@@ -1,11 +1,6 @@
 #!/bin/bash
 
-# NPM cache directory should already exist from Dockerfile
-# Just verify it exists and has correct permissions
-if [ ! -d "/home/claude/.cache/npm" ]; then
-    echo "Warning: NPM cache directory not found at /home/claude/.cache/npm"
-    echo "NPM operations may fail. Please rebuild the Docker image."
-fi
+# NPM uses temp directories - no setup needed
 
 # Detect project type and set intelligent default
 if [ -d "/var/www/html/.ddev" ]; then

@@ -50,21 +50,17 @@ RUN pip3 install --upgrade pip setuptools wheel && \
 COPY docker/entrypoint-flow.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Create Playwright directories for claude user and set permissions
+# Create config directory for MCP servers
+RUN mkdir -p /home/claude/.config/claude && \
+    chown -R claude:claude /home/claude/.config
+
+# Copy Playwright browsers to user directory
 RUN mkdir -p /home/claude/.cache/ms-playwright && \
     cp -r /root/.cache/ms-playwright/* /home/claude/.cache/ms-playwright/ || true && \
     chown -R claude:claude /home/claude/.cache/ms-playwright
 
-# Create config directory for claude user
-RUN mkdir -p /home/claude/.config/claude && \
-    chown -R claude:claude /home/claude/.config
-
-# Create npm cache directory with correct permissions
-RUN mkdir -p /home/claude/.cache/npm /home/claude/.cache/npm/_logs && \
-    chown -R claude:claude /home/claude/.cache/npm
-
-# Set npm cache location explicitly
-ENV NPM_CONFIG_CACHE=/home/claude/.cache/npm
+# NPM will use temp directories automatically
+ENV NPM_CONFIG_CACHE=/tmp/npm-cache
 
 # Create network testing scripts
 RUN echo '#!/bin/bash\n\

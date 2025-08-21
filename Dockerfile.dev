@@ -21,16 +21,12 @@ RUN npm install -g @anthropic-ai/claude-code
 COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Create npm cache directory with correct permissions
-RUN mkdir -p /home/claude/.cache/npm /home/claude/.cache/npm/_logs && \
-    chown -R claude:claude /home/claude/.cache/npm
-
-# Create config directory for claude user
+# Create config directory for Claude
 RUN mkdir -p /home/claude/.config && \
     chown -R claude:claude /home/claude/.config
 
-# Set npm cache location explicitly
-ENV NPM_CONFIG_CACHE=/home/claude/.cache/npm
+# NPM will use temp directories automatically
+ENV NPM_CONFIG_CACHE=/tmp/npm-cache
 
 # Set working directory
 WORKDIR /var/www/html
