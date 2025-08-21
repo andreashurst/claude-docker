@@ -3,19 +3,12 @@
 # Set PATH to include Deno
 export PATH="/home/claude/.deno/bin:$PATH"
 
-# Fix npm cache permissions if needed
-if [ -d "/home/claude/.cache/npm" ]; then
-    if [ "$(stat -c %u /home/claude/.cache/npm)" != "$(id -u)" ]; then
-        echo "Fixing npm cache permissions..."
-        # Note: sudo is not available in container, permissions should be set in Dockerfile
-        mkdir -p /home/claude/.cache/npm 2>/dev/null || true
-    fi
-else
-    mkdir -p /home/claude/.cache/npm
+# NPM cache directory should already exist from Dockerfile
+# Just verify it exists and has correct permissions
+if [ ! -d "/home/claude/.cache/npm" ]; then
+    echo "Warning: NPM cache directory not found at /home/claude/.cache/npm"
+    echo "NPM operations may fail. Please rebuild the Docker image."
 fi
-
-# Fix npm logs directory permissions
-mkdir -p /home/claude/.cache/npm/_logs 2>/dev/null || true
 
 # Detect project type and set intelligent default
 if [ -d "/var/www/html/.ddev" ]; then

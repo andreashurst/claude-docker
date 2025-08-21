@@ -22,11 +22,11 @@ COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Create npm cache directory with correct permissions
-RUN mkdir -p /home/claude/.cache/npm /home/claude/.cache/npm/_logs && 
+RUN mkdir -p /home/claude/.cache/npm /home/claude/.cache/npm/_logs && \
     chown -R claude:claude /home/claude/.cache/npm
 
 # Create config directory for claude user
-RUN mkdir -p /home/claude/.config && 
+RUN mkdir -p /home/claude/.config && \
     chown -R claude:claude /home/claude/.config
 
 # Set npm cache location explicitly
