@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # Set PATH to include Deno
 export PATH="/home/claude/.deno/bin:$PATH"
@@ -46,7 +45,7 @@ echo ''
 echo 'MCP Servers Status:'
 echo '==================='
 echo '✓ Playwright MCP: @playwright/mcp'
-echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem'
+echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem' 
 echo '✓ Git MCP: mcp-server-git (Python)'
 echo ''
 

@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo 'Claude Dev Environment Starting...'
 echo '================================='
