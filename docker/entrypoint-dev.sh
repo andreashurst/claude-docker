@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Fix npm cache permissions if needed
+if [ -d "/home/claude/.cache/npm" ]; then
+    if [ "$(stat -c %u /home/claude/.cache/npm)" != "$(id -u)" ]; then
+        echo "Fixing npm cache permissions..."
+        mkdir -p /home/claude/.cache/npm 2>/dev/null || true
+    fi
+else
+    mkdir -p /home/claude/.cache/npm
+fi
+
 # Detect project type and set intelligent default
 if [ -d "/var/www/html/.ddev" ]; then
     # Extract project details from .ddev/config.yaml

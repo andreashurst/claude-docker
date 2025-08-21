@@ -59,6 +59,13 @@ RUN mkdir -p /home/claude/.cache/ms-playwright && \
 RUN mkdir -p /home/claude/.config/claude && \
     chown -R claude:claude /home/claude/.config
 
+# Create npm cache directory with correct permissions
+RUN mkdir -p /home/claude/.cache/npm /home/claude/.cache/npm/_logs && \
+    chown -R claude:claude /home/claude/.cache/npm
+
+# Set npm cache location explicitly
+ENV NPM_CONFIG_CACHE=/home/claude/.cache/npm
+
 # Create network testing scripts
 RUN echo '#!/bin/bash\n\
 echo "Testing host.docker.internal connectivity..."\n\
