@@ -25,9 +25,6 @@ services:
     
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
-      - claude-dev-cache:/home/claude/.cache
-      - claude-dev-npm:/home/claude/.npm
-      - claude-dev-config:/home/claude/.config
     
     environment:
       - NODE_ENV=development
@@ -46,13 +43,6 @@ services:
     
     restart: "no"
 
-volumes:
-  claude-dev-cache:
-    driver: local
-  claude-dev-npm:
-    driver: local
-  claude-dev-config:
-    driver: local
 EOF
 
 # Check if container is already running, if not start it

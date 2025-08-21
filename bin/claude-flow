@@ -50,11 +50,6 @@ services:
     
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
-      - claude-flow-cache:/home/claude/.cache
-      - claude-flow-npm:/home/claude/.npm
-      - claude-flow-config:/home/claude/.config
-      - claude-flow-deno:/home/claude/.deno
-      - claude-flow-playwright:/home/claude/.cache/ms-playwright
       - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
     
     environment:
@@ -84,17 +79,6 @@ services:
           memory: 4G
           cpus: '2.0'
 
-volumes:
-  claude-flow-cache:
-    driver: local
-  claude-flow-npm:
-    driver: local
-  claude-flow-config:
-    driver: local
-  claude-flow-deno:
-    driver: local
-  claude-flow-playwright:
-    driver: local
 EOF
 
 # Check if container is already running, if not start it
