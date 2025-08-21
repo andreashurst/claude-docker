@@ -9,20 +9,9 @@ services:
 
     working_dir: /var/www/html
 
-    # Health check
-    healthcheck:
-      test: ["CMD", "claude", "--version"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-
     # Network configuration
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
 
     # Volume mounts with proper permissions
     volumes:
