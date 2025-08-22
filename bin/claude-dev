@@ -31,9 +31,7 @@ services:
       - NPM_CONFIG_CACHE=/tmp/npm-cache
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
-      - FRONTEND_URL=${FRONTEND_URL:-localhost:3000}
       - PROJECT_PATH=${CURRENT_DIR}
-      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
     
     stdin_open: true
     tty: true

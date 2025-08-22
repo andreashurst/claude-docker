@@ -78,9 +78,7 @@ services:
       - DENO_INSTALL="/home/claude/.deno"
       - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
       - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
-      - FRONTEND_URL=\${FRONTEND_URL:-localhost:3000}
       - PROJECT_PATH=${CURRENT_DIR}
-      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
     
     stdin_open: true
     tty: true

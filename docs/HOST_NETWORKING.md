@@ -190,11 +190,11 @@ nc -v host.docker.internal 3000
 ## Dynamic Configuration
 
 ### MCP Configuration
-The container automatically generates a dynamic MCP configuration based on your input:
+The container automatically generates a dynamic MCP configuration:
 
-- **Frontend URL**: Uses the URL you specify during startup
+- **Frontend URL**: Automatically detected based on project type (DDEV projects) or defaults to localhost:3000
 - **Project Path**: Always uses current working directory (PWD) for consistency
-- **Port Extraction**: Automatically extracts port from your frontend URL
+- **Port Extraction**: Automatically extracts port from the detected frontend URL
 
 **Important**: The scripts always use the current directory as project path to ensure consistency between container names and Docker volume mounts.
 

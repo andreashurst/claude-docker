@@ -5,43 +5,15 @@ export PATH="/home/claude/.deno/bin:$PATH"
 
 # NPM uses temp directories - no setup needed
 
-# Detect project type and set intelligent default
+# Detect project type
 if [ -d "/var/www/html/.ddev" ]; then
-    # Extract project details from .ddev/config.yaml
-    if [ -f "/var/www/html/.ddev/config.yaml" ]; then
-        PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
-        # Try to get URLs in priority order
-        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
-        if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
-            DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
-        elif [ -n "$ADDITIONAL_HOSTNAMES" ] && [ "$ADDITIONAL_HOSTNAMES" != "" ]; then
-            DEFAULT_URL="https://${ADDITIONAL_HOSTNAMES}"
-        else
-            # Use project_tld if set, otherwise default to ddev.site
-            if [ -n "$PROJECT_TLD" ] && [ "$PROJECT_TLD" != "" ]; then
-                DEFAULT_URL="https://${PROJECT_NAME}.${PROJECT_TLD}"
-            else
-                DEFAULT_URL="https://${PROJECT_NAME}.ddev.site"
-            fi
-        fi
-    else
-        DEFAULT_URL="localhost:3000"
-    fi
     PROJECT_TYPE="DDEV"
 else
-    DEFAULT_URL="localhost:3000"
     PROJECT_TYPE="Standard"
 fi
 
-# Interactive frontend URL input
+# Display project detection
 echo "🎯 $PROJECT_TYPE project detected"
-echo ""
-read -p "Frontend URL (default: $DEFAULT_URL): " FRONTEND_INPUT
-export FRONTEND_URL=${FRONTEND_INPUT:-$DEFAULT_URL}
 
 # Check for web server directory and start internal server
 echo ""
@@ -104,23 +76,24 @@ echo 'Host Gateway: host.docker.internal'
 ping -c 1 host.docker.internal > /dev/null 2>&1 && echo '✓ Host connection: OK' || echo '✗ Host connection: FAILED'
 echo ''
 
-echo 'Host Services Configuration:'
-echo "- Configured Frontend: http://${FRONTEND_URL:-localhost:3000}"
+echo 'Services Configuration:'
 if [ -n "$WEB_DIR" ] && [ "$WEB_INPUT" != "skip" ]; then
     echo "- Internal Web Server: http://localhost:80 (serving $WEB_DIR)"
 fi
-echo '- Common Alternatives:'
+echo '- Host Frontend Services:'
 echo '  - React/Next.js: http://host.docker.internal:3000'
 echo '  - Vite Dev:      http://host.docker.internal:5173'
 echo '  - Angular:       http://host.docker.internal:4200'
-echo '- Backend:         http://host.docker.internal:8000'
-echo '- Database:        host.docker.internal:5432'
+echo '- Host Backend:    http://host.docker.internal:8000'
+echo '- Host Database:   host.docker.internal:5432'
 echo ''
 
-echo 'Testing Host Connectivity:'
+echo 'Testing Connectivity:'
 echo '  ping host.docker.internal'
-echo "  test-port ${FRONTEND_PORT:-3000}"
-echo "  curl -I http://${FRONTEND_URL:-host.docker.internal:3000}"
+echo '  test-port 3000  # For host services'
+if [ -n "$WEB_DIR" ] && [ "$WEB_INPUT" != "skip" ]; then
+    echo '  curl -I http://localhost:80  # For internal web server'
+fi
 echo ''
 
 echo 'Checking Playwright browsers...'
