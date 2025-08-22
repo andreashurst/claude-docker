@@ -6,8 +6,19 @@ RUN apk update && apk upgrade && \
     git \
     bash \
     curl \
+    wget \
     unzip \
     ca-certificates \
+    jq \
+    ripgrep \
+    tree \
+    htop \
+    netcat-openbsd \
+    nano \
+    vim \
+    make \
+    openssh-client \
+    iputils \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -16,6 +27,28 @@ RUN addgroup -g 1010 claude && \
 
 # Install Claude Code globally
 RUN npm install -g @anthropic-ai/claude-code
+
+# Create network testing scripts
+RUN echo '#!/bin/sh\n\
+echo "Testing host.docker.internal connectivity..."\n\
+ping -c 3 host.docker.internal\n\
+echo ""\n\
+echo "Testing common ports..."\n\
+for port in 3000 5173 8000 5000 5432 3306 27017; do\n\
+  nc -z -v -w3 host.docker.internal $port 2>/dev/null && echo "Port $port: OPEN" || echo "Port $port: CLOSED"\n\
+done' > /usr/local/bin/test-host-connectivity && \
+    chmod +x /usr/local/bin/test-host-connectivity
+
+RUN echo '#!/bin/sh\n\
+if [ -z "$1" ]; then\n\
+  echo "Usage: test-port PORT"\n\
+  echo "Example: test-port 3000"\n\
+  exit 1\n\
+fi\n\
+PORT=$1\n\
+echo "Testing host.docker.internal:$PORT..."\n\
+nc -z -v -w5 host.docker.internal $PORT 2>/dev/null && echo "Port $PORT: OPEN" || echo "Port $PORT: CLOSED"' > /usr/local/bin/test-port && \
+    chmod +x /usr/local/bin/test-port
 
 # Copy entrypoint script
 COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh

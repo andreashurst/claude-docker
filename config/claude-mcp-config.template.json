@@ -98,12 +98,19 @@
       "workingDirectory": "/var/www/html",
       "user": "claude (UID 1010)",
       "runtimes": ["node", "deno", "python3"],
-      "tools": ["git", "curl", "playwright", "sqlite3", "test-host-connectivity", "test-port"],
+      "tools": [
+        "node", "npm", "npx", "pnpm", "deno",
+        "python3", "pip3",
+        "git", "curl", "wget", "ssh",
+        "playwright", "sqlite3",
+        "jq", "ripgrep", "tree", "htop", "nc",
+        "nano", "vim", "make",
+        "claude", "claude-flow",
+        "test-host-connectivity", "test-port"
+      ],
       "volumes": {
         "project": "{{PROJECT_PATH}} mounted to /var/www/html",
-        "cache": "/home/claude/.cache (persistent)",
-        "config": "/home/claude/.config (persistent)",
-        "playwright": "/home/claude/.cache/ms-playwright (persistent)"
+        "mcp_config": "/home/claude/.config/claude/claude_desktop_config.json (read-only)"
       }
     }
   }

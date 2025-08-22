@@ -46,6 +46,26 @@ cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
       "description": "Use Playwright with the internal web server",
       "testCommand": "await page.goto('http://localhost:80')",
       "codegen": "playwright codegen http://localhost:80"
+    },
+    "container": {
+      "workingDirectory": "/var/www/html",
+      "user": "claude (UID 1010)",
+      "runtimes": ["node", "deno", "python3"],
+      "tools": [
+        "node", "npm", "npx", "pnpm", "deno",
+        "python3", "pip3",
+        "git", "curl", "wget", "ssh",
+        "playwright", "sqlite3",
+        "jq", "ripgrep", "tree", "htop", "nc",
+        "nano", "vim", "make",
+        "claude", "claude-flow",
+        "test-host-connectivity", "test-port"
+      ],
+      "volumes": {
+        "project": "Current directory mounted to /var/www/html",
+        "mcp_config": "Temporary MCP config (regenerated each run)"
+      },
+      "note": "Cache and config directories are temporary and reset on container restart"
     }
   }
 }
