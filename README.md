@@ -48,11 +48,59 @@ chmod +x claude-flow
 - ✅ **MCP servers** (filesystem, git, playwright)
 - ✅ **Auto-generated MCP configuration**
 - ✅ **Python 3** with pip packages
+- ✅ **Internal web server** on port 80 (accessible from host on port 8080)
 
 ## Requirements
 
 - Docker installed and running
 - Internet connection (for Docker Hub image download)
+
+## Internal Web Server (claude-flow only)
+
+The claude-flow environment includes an internal Python HTTP server for Playwright testing:
+
+- **Auto-detection**: Automatically detects `public`, `src`, `dist`, or `build` directories in your mounted project
+- **Custom directory**: Prompts for custom directory if standard ones aren't found
+- **Port mapping**: Internal port 80 → Host port 8080
+- **Access URLs**:
+  - From container/Playwright: `http://localhost:80`
+  - From host browser: `http://localhost:8080`
+
+### How Claude Can Use Playwright
+
+Claude Code has full access to Playwright and can run tests directly. The MCP configuration tells Claude about the internal web server. Example:
+
+```javascript
+// Claude can create and run this test automatically
+const { chromium } = require('playwright');
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  
+  // Navigate to the internal web server
+  await page.goto('http://localhost:80');
+  
+  // Perform tests
+  const title = await page.title();
+  console.log('Page title:', title);
+  
+  await browser.close();
+})()
+```
+
+### Testing the Web Server
+
+```bash
+# Generate Playwright tests interactively
+playwright codegen http://localhost:80
+
+# Check if web server is running
+ps aux | grep "[p]ython3 -m http.server"
+
+# View web server logs
+tail -f /var/log/webserver.log
+```
 
 ## Docker Hub Images
 

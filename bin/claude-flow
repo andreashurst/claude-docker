@@ -33,6 +33,20 @@ cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
       "command": "python3",
       "args": ["-m", "mcp_server_git", "--repository", "/var/www/html"]
     }
+  },
+  "environmentInfo": {
+    "internalWebServer": {
+      "status": "Will be started on container launch",
+      "url": "http://localhost:80",
+      "hostAccess": "http://localhost:8080",
+      "description": "Internal Python HTTP server for Playwright testing",
+      "note": "Server directory will be auto-detected or prompted during startup"
+    },
+    "playwrightUsage": {
+      "description": "Use Playwright with the internal web server",
+      "testCommand": "await page.goto('http://localhost:80')",
+      "codegen": "playwright codegen http://localhost:80"
+    }
   }
 }
 EOF
@@ -44,6 +58,9 @@ services:
   claude-flow:
     image: andreashurst/claude-docker:latest-flow
     working_dir: /var/www/html
+    
+    ports:
+      - "8080:80"
     
     extra_hosts:
       - "host.docker.internal:host-gateway"
