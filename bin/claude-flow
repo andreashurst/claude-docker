@@ -23,7 +23,7 @@ cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
       "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
     },
     "playwright": {
-      "command": "npx", 
+      "command": "npx",
       "args": ["@playwright/mcp"],
       "env": {
         "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
@@ -78,17 +78,17 @@ services:
   claude-flow:
     image: andreashurst/claude-docker:latest-flow
     working_dir: /var/www/html
-    
+
     ports:
       - "8080:80"
-    
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    
+
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
       - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
-    
+
     environment:
       - NODE_ENV=development
       - NPM_CONFIG_CACHE=/tmp/npm-cache
@@ -99,15 +99,15 @@ services:
       - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
       - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
       - PROJECT_PATH=${CURRENT_DIR}
-    
+
     stdin_open: true
     tty: true
-    
+
     security_opt:
       - no-new-privileges:true
-    
+
     restart: "no"
-    
+
     deploy:
       resources:
         limits:
@@ -119,15 +119,15 @@ EOF
 # Check if container is already running, if not start it
 if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-flow; then
     echo "Starting ${COMPOSE_PROJECT_NAME}..."
+    # Start container entrypont
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow /usr/local/bin/entrypoint.sh
 else
+    # Jump into container bash
     echo "Container ${COMPOSE_PROJECT_NAME} already running..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
 fi
 
-# Attach to container interactively
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow /usr/local/bin/entrypoint.sh
-
-# Stop container when exiting (but don't remove it)
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop
+# Clean up temporary files (container keeps running)
 rm -f "$COMPOSE_FILE"
 rm -rf "$MCP_CONFIG_DIR"

@@ -19,26 +19,26 @@ services:
   claude-dev:
     image: andreashurst/claude-docker:latest-dev
     working_dir: /var/www/html
-    
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    
+
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
-    
+
     environment:
       - NODE_ENV=development
       - NPM_CONFIG_CACHE=/tmp/npm-cache
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
       - PROJECT_PATH=${CURRENT_DIR}
-    
+
     stdin_open: true
     tty: true
-    
+
     security_opt:
       - no-new-privileges:true
-    
+
     restart: "no"
 
 EOF
@@ -47,13 +47,14 @@ EOF
 if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-dev; then
     echo "Starting ${COMPOSE_PROJECT_NAME}..."
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+    # Start container entrypont
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev /usr/local/bin/entrypoint.sh
 else
+    # Jump into container bash
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
     echo "Container ${COMPOSE_PROJECT_NAME} already running..."
 fi
 
-# Attach to container interactively
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev /usr/local/bin/entrypoint.sh
 
-# Stop container when exiting (but don't remove it)
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop
+# Clean up compose file (container keeps running)
 rm -f "$COMPOSE_FILE"
