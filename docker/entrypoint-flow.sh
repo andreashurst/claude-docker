@@ -1,17 +1,29 @@
 #!/bin/bash
 
-# Set PATH to include Deno
-export PATH="/home/claude/.deno/bin:$PATH"
+# Set PATH to include Deno and npm global binaries
+export PATH="/usr/local/bin:/home/claude/.deno/bin:$PATH"
 
-# Create aliases for Claude - secure by default
-echo 'alias claude-insecure="/usr/bin/claude"' >> ~/.bashrc
-echo 'alias claude="/usr/bin/claude --settings /home/claude/.claude/settings.local.json"' >> ~/.bashrc
+# Find where claude is actually installed
+CLAUDE_PATH=$(which claude 2>/dev/null || echo "/usr/local/bin/claude")
+
+# Create aliases for Claude - secure by default  
+echo "alias claude-insecure='$CLAUDE_PATH'" >> ~/.bashrc
+echo "alias claude='$CLAUDE_PATH --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
 
 echo '=============================================================================='
-echo 'Claude Dev Environment Starting...'
+echo 'Claude Flow Environment Starting...'
 echo '=============================================================================='
 echo ''
-# NPM uses temp directories - no setup needed
+
+# Debug: Check claude-flow installation
+if which claude-flow > /dev/null 2>&1; then
+    echo "✓ claude-flow found at: $(which claude-flow)"
+else
+    echo "✗ claude-flow NOT found in PATH"
+    echo "  Checking npm global packages:"
+    npm list -g --depth=0 | grep claude-flow || echo "  Not in global npm packages"
+fi
+echo ''
 
 # Create Claude working directories based on settings.local.json
 echo "📁 Setting up Claude working directories..."

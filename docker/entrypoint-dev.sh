@@ -2,9 +2,15 @@
 
 # NPM uses temp directories - no setup needed
 
+# Set PATH for npm global binaries
+export PATH="/usr/local/bin:$PATH"
+
+# Find where claude is actually installed
+CLAUDE_PATH=$(which claude 2>/dev/null || echo "/usr/local/bin/claude")
+
 # Create aliases for Claude - secure by default
-echo 'alias claude-insecure="/usr/bin/claude"' >> ~/.bashrc
-echo 'alias claude="/usr/bin/claude --settings /home/claude/.claude/settings.local.json"' >> ~/.bashrc
+echo "alias claude-insecure='$CLAUDE_PATH'" >> ~/.bashrc
+echo "alias claude='$CLAUDE_PATH --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
 
 echo '=============================================================================='
 echo 'Claude Dev Environment Starting...'
