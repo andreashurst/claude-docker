@@ -39,16 +39,17 @@
       "Bash(sort:*)",
       "Bash(uniq:*)",
       "Bash(playwright:*)",
+      "Bash(screenshot:*)",
       "Bash(deno:*)",
       "Bash(python3:*)",
-      "Bash(pip3:*)"
+      "Bash(pip3:*)",
+      "Bash(test-port:*)",
+      "Bash(test-host-connectivity:*)"
     ]
   },
   "paths": {
     "allowed_writes": [
       "/var/www/html/.claude/**",
-      "/var/www/html/frontend/styles/tailwind*",
-      "/var/www/html/packages/tailwind/**",
       "/tmp/**"
     ],
     "forbidden_writes": [

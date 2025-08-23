@@ -19,7 +19,13 @@ mkdir -p /var/www/html/.claude/TMP
 mkdir -p /var/www/html/.claude/PLAYWRIGHT
 mkdir -p /var/www/html/.claude/PLAYWRIGHT/test-results
 mkdir -p /var/www/html/.claude/PLAYWRIGHT/screenshots
+mkdir -p /var/www/html/.claude/PLAYWRIGHT/tests
 echo "✓ Claude directories created"
+
+# Create Playwright aliases for convenience
+echo 'alias screenshot="node /usr/local/bin/screenshot"' >> ~/.bashrc
+echo 'alias playwright-test="cd /var/www/html/.claude/PLAYWRIGHT && playwright test"' >> ~/.bashrc
+echo 'alias playwright-ui="cd /var/www/html/.claude/PLAYWRIGHT && playwright test --ui"' >> ~/.bashrc
 
 # Detect project type
 if [ -d "/var/www/html/.ddev" ]; then
@@ -30,49 +36,6 @@ fi
 
 # Display project detection
 echo "🎯 $PROJECT_TYPE project detected"
-
-# Check for web server directory and start internal server
-echo "🌐 Setting up internal web server for Playwright..."
-if [ -d "/var/www/html/public" ]; then
-    WEB_DIR="/var/www/html/public"
-    echo "✓ Found 'public' directory"
-elif [ -d "/var/www/html/src" ]; then
-    WEB_DIR="/var/www/html/src"
-    echo "✓ Found 'src' directory"
-elif [ -d "/var/www/html/dist" ]; then
-    WEB_DIR="/var/www/html/dist"
-    echo "✓ Found 'dist' directory"
-elif [ -d "/var/www/html/build" ]; then
-    WEB_DIR="/var/www/html/build"
-    echo "✓ Found 'build' directory"
-else
-    echo "No standard web directory found (public, src, dist, build)"
-    read -p "Enter directory to serve (relative to /var/www/html, or 'skip' to skip): " WEB_INPUT
-    if [ "$WEB_INPUT" != "skip" ] && [ "$WEB_INPUT" != "" ]; then
-        WEB_DIR="/var/www/html/${WEB_INPUT}"
-        if [ ! -d "$WEB_DIR" ]; then
-            echo "Creating directory: $WEB_DIR"
-            mkdir -p "$WEB_DIR"
-        fi
-    fi
-fi
-
-# Start the web server if directory was selected
-if [ -n "$WEB_DIR" ] && [ "$WEB_INPUT" != "skip" ]; then
-    echo "Starting web server on port 80 serving: $WEB_DIR"
-    mkdir -p /var/log
-    cd "$WEB_DIR" && nohup python3 -m http.server 80 --bind 0.0.0.0 > /var/log/webserver.log 2>&1 &
-    sleep 1
-    if ps aux | grep -q "[p]ython3 -m http.server 80"; then
-        echo "✓ Web server started successfully on http://localhost:80"
-        echo "  Internal URL for Playwright: http://localhost:80"
-        echo "  Logs: /var/log/webserver.log"
-    else
-        echo "⚠ Web server failed to start. Check /var/log/webserver.log for details"
-    fi
-else
-    echo "⚠ Skipping internal web server setup"
-fi
 
 echo ""
 echo 'Node.js version:' && node --version
@@ -91,9 +54,6 @@ ping -c 1 host.docker.internal > /dev/null 2>&1 && echo '✓ Host connection: OK
 echo ''
 
 echo 'Services Configuration:'
-if [ -n "$WEB_DIR" ] && [ "$WEB_INPUT" != "skip" ]; then
-    echo "- Internal Web Server: http://localhost:80 (serving $WEB_DIR)"
-fi
 echo '- Host Frontend Services:'
 echo '  - React/Next.js: http://host.docker.internal:3000'
 echo '  - Vite Dev:      http://host.docker.internal:5173'
@@ -105,9 +65,6 @@ echo ''
 echo 'Testing Connectivity:'
 echo '  ping host.docker.internal'
 echo '  test-port 3000  # For host services'
-if [ -n "$WEB_DIR" ] && [ "$WEB_INPUT" != "skip" ]; then
-    echo '  curl -I http://localhost:80  # For internal web server'
-fi
 echo ''
 
 echo 'Checking Playwright browsers...'
@@ -122,6 +79,25 @@ echo '==========================================================================
 echo '✓ Playwright MCP: @playwright/mcp'
 echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem'
 echo '✓ Git MCP: mcp-server-git (Python)'
+echo ''
+
+echo '=============================================================================='
+echo 'Playwright & Vite Integration:'
+echo '=============================================================================='
+echo '✓ Universal screenshot: screenshot <url> <output>'
+echo '✓ Auto-detects: DDEV, Docker, or Local environment'
+echo '✓ Test directory: /var/www/html/.claude/PLAYWRIGHT'
+echo ''
+echo '📸 Screenshot Usage:'
+echo '  screenshot http://localhost screenshot.png'
+echo '  → DDEV: Uses *.ddev.site domains'
+echo '  → Docker: Uses host.docker.internal'
+echo '  → Local: Direct localhost access'
+echo ''
+echo '🔗 Environment Detection:'
+echo '  - DDEV: Automatically uses *.ddev.site domains'
+echo '  - Docker: Rewrites to host.docker.internal'
+echo '  - Local: Direct access (no rewriting needed)'
 echo ''
 
 echo '=============================================================================='
@@ -144,13 +120,13 @@ echo '==========================================================================
 echo '• claude                         - Claude shell (SECURE by default)'
 echo '• claude-insecure                - Claude shell (unrestricted mode)'
 echo '• claude "your prompt"           - Ask Claude anything (secure mode)'
-echo '• claude-flow                    - Start Claude Flow (if available)'
+echo '• screenshot <url> <file>        - Universal screenshot (auto-detect env)'
 echo '• playwright codegen             - Generate Playwright tests'
+echo '• playwright-test                - Run tests in .claude/PLAYWRIGHT'
+echo '• playwright-ui                  - Run tests with UI mode'
 echo '• deno run script.ts             - Run TypeScript with Deno'
 echo '• python3 script.py             - Run Python scripts'
-echo '• claude auth login              - Login to Claude (if needed)'
-echo '• ls                             - List files in your project'
-echo '• git status                     - Check git status'
+echo '• test-port 3000                 - Test host port connectivity'
 echo '• exit                           - Leave container'
 echo ''
 echo '🔌 MCP Servers Available:'

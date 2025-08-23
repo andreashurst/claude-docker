@@ -1,110 +1,158 @@
-# Claude Docker Shell Commands
+# Claude Docker Environments
 
-This directory contains standalone shell commands for running Claude environments using Docker Hub images.
+Run Claude Code CLI in secure, containerized environments with pre-configured development tools.
 
-## Commands
-
-- **`claude-dev`** - Basic Claude Code development environment
-- **`claude-flow`** - Advanced Claude Flow environment with Playwright, Deno, and MCP servers
-
-## Usage
-
-### From Repository
-```bash
-# Basic environment
-./bin/claude-dev
-
-# Advanced environment  
-./bin/claude-flow
-```
-
-### Standalone Usage
-Download and use individual scripts:
+## Quick Start
 
 ```bash
-# Download claude-dev
-curl -o claude-dev https://raw.githubusercontent.com/andreashurst/claude-docker/main/bin/claude-dev
-chmod +x claude-dev
-./claude-dev
+# Install globally
+curl -sSL https://raw.githubusercontent.com/andreashurst/claude-docker/main/install.sh | bash
 
-# Download claude-flow
-curl -o claude-flow https://raw.githubusercontent.com/andreashurst/claude-docker/main/bin/claude-flow  
-chmod +x claude-flow
-./claude-flow
+# Or run directly
+./bin/claude-dev   # Basic environment
+./bin/claude-flow  # Advanced with Playwright & MCP
 ```
 
-## Features
+## Environments
 
-### claude-dev
-- ✅ **Alpine Linux** base for minimal footprint
-- ✅ **Claude Code CLI** pre-installed
-- ✅ **Host networking** for localhost access
-- ✅ **Persistent volumes** for cache and config
+### `claude-dev` - Lightweight Development
+- Alpine Linux base
+- Claude Code CLI (secure by default)
+- Git, Node.js, npm
+- Minimal footprint (~200MB)
 
-### claude-flow
-- ✅ **All claude-dev features** plus:
-- ✅ **Deno runtime** for modern JavaScript/TypeScript
-- ✅ **Playwright** with browsers pre-installed
-- ✅ **MCP servers** (filesystem, git, playwright)
-- ✅ **Auto-generated MCP configuration**
-- ✅ **Python 3** with pip packages
-- ✅ **Internal web server** on port 80 (accessible from host on port 8080)
+### `claude-flow` - Full-Stack Testing
+- Everything in claude-dev plus:
+- Playwright with browsers
+- MCP servers (filesystem, git, playwright)
+- Deno runtime
+- Python 3
+- Universal screenshot tool
+
+## Security First
+
+Both environments run Claude in **secure mode by default**:
+
+```bash
+claude "your prompt"          # Secure (restricted commands)
+claude-insecure "your prompt" # Unrestricted access
+```
+
+### Security Levels
+
+| Environment | Git | System Commands | Package Managers |
+|-------------|-----|-----------------|------------------|
+| `claude-dev` | ✅ Allowed | ❌ Blocked | ❌ Blocked |
+| `claude-flow` | ❌ Blocked | ❌ Blocked | ❌ Blocked |
+
+## Key Features
+
+### Universal Screenshot (claude-flow)
+Automatically detects your environment and handles Vite/webpack dev servers:
+
+```bash
+screenshot http://localhost screenshot.png
+# → DDEV: Uses project domain (auto-detects custom TLDs)
+# → Docker: Uses host.docker.internal  
+# → Local: Direct access
+```
+
+### Host Service Access
+Access services running on your host machine:
+
+```bash
+# Test host connectivity
+test-port 3000
+
+# Access host services
+curl http://host.docker.internal:3000
+```
+
+### Playwright Testing
+```bash
+# Generate tests
+playwright codegen http://localhost
+
+# Run tests
+playwright-test
+
+# UI mode
+playwright-ui
+```
+
+## Project Structure
+
+```
+claude-docker/
+├── bin/
+│   ├── claude-dev          # Launch script
+│   └── claude-flow         # Launch script
+├── config/
+│   ├── dev.settings.local.json     # Security settings
+│   └── flow.*.json                 # Flow configs
+└── docs/
+    ├── PLAYWRIGHT.md       # Testing guide
+    └── NETWORKING.md       # Host access guide
+```
+
+## Common Tasks
+
+### Working with Vite/Webpack
+
+```bash
+# On host: Start dev server
+npm run dev
+
+# In container: Take screenshot with CSS
+screenshot http://localhost screenshot.png
+```
+
+### Running Tests
+
+```bash
+# Copy example test  
+cp /usr/local/share/claude/examples/example-test.spec.js tests/
+
+# Run all tests
+playwright-test
+```
+
+### Accessing Databases
+
+```bash
+# PostgreSQL on host
+psql -h host.docker.internal -p 5432 -U user dbname
+
+# MySQL on host
+mysql -h host.docker.internal -P 3306 -u user -p
+```
 
 ## Requirements
 
-- Docker installed and running
-- Internet connection (for Docker Hub image download)
+- Docker Desktop (Mac/Windows) or Docker Engine (Linux)
+- 4GB RAM recommended for claude-flow
+- Internet connection for initial setup
 
-## Internal Web Server (claude-flow only)
+## Docker Images
 
-The claude-flow environment includes an internal Python HTTP server for Playwright testing:
-
-- **Auto-detection**: Automatically detects `public`, `src`, `dist`, or `build` directories in your mounted project
-- **Custom directory**: Prompts for custom directory if standard ones aren't found
-- **Port mapping**: Internal port 80 → Host port 8080
-- **Access URLs**:
-  - From container/Playwright: `http://localhost:80`
-  - From host browser: `http://localhost:8080`
-
-### How Claude Can Use Playwright
-
-Claude Code has full access to Playwright and can run tests directly. The MCP configuration tells Claude about the internal web server. Example:
-
-```javascript
-// Claude can create and run this test automatically
-const { chromium } = require('playwright');
-
-(async () => {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  
-  // Navigate to the internal web server
-  await page.goto('http://localhost:80');
-  
-  // Perform tests
-  const title = await page.title();
-  console.log('Page title:', title);
-  
-  await browser.close();
-})()
-```
-
-### Testing the Web Server
-
-```bash
-# Generate Playwright tests interactively
-playwright codegen http://localhost:80
-
-# Check if web server is running
-ps aux | grep "[p]ython3 -m http.server"
-
-# View web server logs
-tail -f /var/log/webserver.log
-```
-
-## Docker Hub Images
-
+Pre-built images available on Docker Hub:
 - `andreashurst/claude-docker:latest-dev`
 - `andreashurst/claude-docker:latest-flow`
 
-Built automatically via GitHub Actions with multi-platform support (AMD64/ARM64).
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Connection refused" | Check service is running on host |
+| Screenshots without CSS | Vite/webpack server not accessible |
+| Large screenshots (>600KB) | HMR corruption - use `screenshot` command |
+| Permission denied | Run without sudo, Docker group membership required |
+
+## Documentation
+
+- [Playwright & Testing Guide](docs/PLAYWRIGHT.md)
+- [Networking & Host Access](docs/NETWORKING.md)
+
+## License
+
+MIT - See LICENSE file for details

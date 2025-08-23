@@ -17,42 +17,15 @@
     }
   },
   "environmentInfo": {
-    "internalWebServer": {
-      "status": "Running on port 80",
-      "url": "http://localhost:80",
-      "servingDirectory": "{{WEB_DIR}}",
-      "hostAccess": "http://localhost:8080",
-      "description": "Internal Python HTTP server for testing static files with Playwright",
-      "usage": {
-        "playwright": "Use http://localhost:80 for Playwright tests inside the container",
-        "example": "await page.goto('http://localhost:80')"
-      }
-    },
     "playwrightTesting": {
-      "description": "Playwright is pre-installed with browsers. Use the internal web server for testing.",
-      "exampleTest": {
-        "description": "Example Playwright test using internal web server",
-        "code": [
-          "const { chromium } = require('playwright');",
-          "",
-          "(async () => {",
-          "  const browser = await chromium.launch({ headless: true });",
-          "  const page = await browser.newPage();",
-          "  ",
-          "  // Test the internal web server",
-          "  await page.goto('http://localhost:80');",
-          "  const title = await page.title();",
-          "  console.log('Page title:', title);",
-          "  ",
-          "  // Take screenshot",
-          "  await page.screenshot({ path: 'test.png' });",
-          "  ",
-          "  await browser.close();",
-          "})()"
-        ]
+      "description": "Playwright with universal screenshot tool that auto-detects your environment",
+      "commands": {
+        "screenshot": "screenshot <url> <output> - Auto-detects DDEV/Docker/Local",
+        "codegen": "playwright codegen <url> - Generate test code",
+        "test": "playwright-test - Run all tests",
+        "ui": "playwright-ui - Run with UI mode"
       },
-      "runTest": "node test.js or playwright test",
-      "codegen": "playwright codegen http://localhost:80"
+      "testDirectory": "/var/www/html/.claude/PLAYWRIGHT"
     },
     "hostNetworking": {
       "hostGateway": "host.docker.internal",
@@ -91,8 +64,7 @@
         "curl -I http://{{FRONTEND_URL}}",
         "test-host-connectivity",
         "test-port {{FRONTEND_PORT}}"
-      ],
-      "documentation": "/var/www/html/docs/HOST_NETWORKING.md"
+      ]
     },
     "container": {
       "workingDirectory": "/var/www/html",
@@ -102,10 +74,10 @@
         "node", "npm", "npx", "pnpm", "deno",
         "python3", "pip3",
         "git", "curl", "wget", "ssh",
-        "playwright", "sqlite3",
-        "jq", "ripgrep", "tree", "htop", "nc",
+        "playwright", "screenshot", "sqlite3",
+        "jq", "ripgrep", "htop", "nc",
         "nano", "vim", "make",
-        "claude", "claude-flow",
+        "claude", "claude-insecure",
         "test-host-connectivity", "test-port"
       ],
       "volumes": {

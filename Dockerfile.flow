@@ -64,6 +64,13 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Copy Claude settings configuration
 COPY config/flow.settings.local.template.json /home/claude/.claude/settings.local.json
 
+# Copy Playwright scripts and examples
+COPY config/flow.universal-screenshot.mjs /usr/local/bin/screenshot
+COPY config/flow.playwright.config.example.js /usr/local/share/claude/examples/playwright.config.js
+COPY config/flow.example-vite-test.spec.js /usr/local/share/claude/examples/example-test.spec.js
+RUN chmod +x /usr/local/bin/screenshot && \
+    mkdir -p /usr/local/share/claude/examples
+
 # Create config directory for MCP servers and Claude settings
 RUN mkdir -p /home/claude/.config/claude && \
     mkdir -p /home/claude/.claude && \
@@ -104,6 +111,10 @@ timeout 5 bash -c "</dev/tcp/host.docker.internal/$PORT" && echo "Port $PORT: OP
 
 # Set Playwright browser path for claude user
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+
+# Set environment variables for Docker/Vite integration
+ENV DOCKER_CONTAINER=true
+ENV VITE_HOST=host.docker.internal
 
 # Set working directory
 WORKDIR /var/www/html
