@@ -50,7 +50,7 @@ echo "Testing host.docker.internal:$PORT..."\n\
 nc -z -v -w5 host.docker.internal $PORT 2>/dev/null && echo "Port $PORT: OPEN" || echo "Port $PORT: CLOSED"' > /usr/local/bin/test-port && \
     chmod +x /usr/local/bin/test-port
 
-# Copy entrypoint script
+# Copy entrypoint script and make executable
 COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

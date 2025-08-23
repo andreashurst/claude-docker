@@ -57,7 +57,7 @@ RUN npm install -g @modelcontextprotocol/server-filesystem
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
-# Copy entrypoint script
+# Copy entrypoint script and make executable
 COPY docker/entrypoint-flow.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

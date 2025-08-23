@@ -56,12 +56,13 @@ EOF
 if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-dev; then
     echo "Starting ${COMPOSE_PROJECT_NAME}..."
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
-    # Start container entrypont
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev /usr/local/bin/entrypoint.sh
-else
-    # Jump into container bash
+    # Wait a moment for container to be ready
+    sleep 2
+    # Connect to the running container
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
+else
     echo "Container ${COMPOSE_PROJECT_NAME} already running..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
 fi
 
 

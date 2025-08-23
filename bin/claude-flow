@@ -129,11 +129,12 @@ EOF
 # Check if container is already running, if not start it
 if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-flow; then
     echo "Starting ${COMPOSE_PROJECT_NAME}..."
-    # Start container entrypont
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow /usr/local/bin/entrypoint.sh
+    # Wait a moment for container to be ready
+    sleep 2
+    # Connect to the running container
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
 else
-    # Jump into container bash
     echo "Container ${COMPOSE_PROJECT_NAME} already running..."
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
 fi

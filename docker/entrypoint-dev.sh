@@ -5,12 +5,19 @@
 # Set PATH for npm global binaries
 export PATH="/usr/local/bin:$PATH"
 
-# Find where claude is actually installed
-CLAUDE_PATH=$(which claude 2>/dev/null || echo "/usr/local/bin/claude")
+# Set up Claude configuration directory and copy settings
+mkdir -p /home/claude/.claude
+if [ -f "/var/www/html/config/dev.settings.local.json" ]; then
+    cp /var/www/html/config/dev.settings.local.json /home/claude/.claude/settings.local.json
+    echo "✓ Claude dev settings copied to /home/claude/.claude/settings.local.json"
+else
+    echo "⚠ Warning: dev.settings.local.json not found, Claude will use default settings"
+fi
 
 # Create aliases for Claude - secure by default
-echo "alias claude-insecure='$CLAUDE_PATH'" >> ~/.bashrc
-echo "alias claude='$CLAUDE_PATH --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
+# Claude is installed via npm at /usr/local/bin/claude
+echo "alias claude-insecure='claude'" >> ~/.bashrc  
+echo "alias claude='claude --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
 
 echo '=============================================================================='
 echo 'Claude Dev Environment Starting...'
@@ -82,5 +89,12 @@ echo '💡 Your project is mounted at /var/www/html'
 echo '💡 Changes persist on your host system'
 echo ''
 
-# Start interactive shell
-exec /bin/bash
+# If running with tty (interactive), start bash
+# Otherwise keep container running with tail
+if [ -t 0 ]; then
+    # Interactive mode
+    exec /bin/bash
+else
+    # Daemon mode - keep container alive
+    tail -f /dev/null
+fi

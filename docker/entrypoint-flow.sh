@@ -3,27 +3,25 @@
 # Set PATH to include Deno and npm global binaries
 export PATH="/usr/local/bin:/home/claude/.deno/bin:$PATH"
 
-# Find where claude is actually installed
-CLAUDE_PATH=$(which claude 2>/dev/null || echo "/usr/local/bin/claude")
+# Set up Claude configuration directory and copy settings
+mkdir -p /home/claude/.claude
+if [ -f "/var/www/html/config/flow.settings.local.template.json" ]; then
+    cp /var/www/html/config/flow.settings.local.template.json /home/claude/.claude/settings.local.json
+    echo "✓ Claude flow settings copied to /home/claude/.claude/settings.local.json"
+else
+    echo "⚠ Warning: flow.settings.local.template.json not found, Claude will use default settings"
+fi
 
-# Create aliases for Claude - secure by default  
-echo "alias claude-insecure='$CLAUDE_PATH'" >> ~/.bashrc
-echo "alias claude='$CLAUDE_PATH --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
+# Create aliases for Claude - secure by default
+# Claude is installed via npm at /usr/local/bin/claude
+echo "alias claude-insecure='claude'" >> ~/.bashrc
+echo "alias claude='claude --settings /home/claude/.claude/settings.local.json'" >> ~/.bashrc
 
 echo '=============================================================================='
 echo 'Claude Flow Environment Starting...'
 echo '=============================================================================='
 echo ''
 
-# Debug: Check claude-flow installation
-if which claude-flow > /dev/null 2>&1; then
-    echo "✓ claude-flow found at: $(which claude-flow)"
-else
-    echo "✗ claude-flow NOT found in PATH"
-    echo "  Checking npm global packages:"
-    npm list -g --depth=0 | grep claude-flow || echo "  Not in global npm packages"
-fi
-echo ''
 
 # Create Claude working directories based on settings.local.json
 echo "📁 Setting up Claude working directories..."
@@ -152,5 +150,15 @@ echo '💡 Your project is mounted at /var/www/html'
 echo '💡 Changes persist on your host system'
 echo ''
 
-# Start interactive shell
-exec /bin/bash
+# Source bashrc to get aliases
+source ~/.bashrc
+
+# If running with tty (interactive), start bash
+# Otherwise keep container running with tail
+if [ -t 0 ]; then
+    # Interactive mode
+    exec /bin/bash
+else
+    # Daemon mode - keep container alive
+    tail -f /dev/null
+fi
