@@ -47,7 +47,7 @@ RUN npm install -g playwright@latest && \
     npx playwright install --with-deps chromium firefox webkit && \
     npx playwright install-deps
 
-# Install Claude Flow (better-sqlite3 is included as dependency)
+# Install Claude Flow orchestration tool
 RUN npm install -g claude-flow@2.0.0-alpha.91
 
 # Install MCP servers for Claude Code integration

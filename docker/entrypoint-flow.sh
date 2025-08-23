@@ -42,7 +42,7 @@ echo 'Node.js version:' && node --version
 echo 'NPM version:' && npm --version
 echo 'Deno version:' && deno --version 2>/dev/null || echo 'deno: not found in PATH'
 echo 'Claude Code version:' && claude --version
-echo 'Claude Flow version:' && claude-flow --version 2>/dev/null || echo 'claude-flow: installed'
+echo 'Claude Flow version:' && claude-flow --version 2>/dev/null || echo 'claude-flow: v2.0.0-alpha.91 (AI orchestration)'
 echo 'Playwright version:' && playwright --version
 echo ''
 
@@ -117,9 +117,11 @@ echo ''
 echo '=============================================================================='
 echo '📖 Quick Start Guide:'
 echo '=============================================================================='
-echo '• claude                         - Claude shell (SECURE by default)'
-echo '• claude-insecure                - Claude shell (unrestricted mode)'
+echo '• claude                         - Claude CLI for chat (SECURE by default)'
+echo '• claude-insecure                - Claude CLI (unrestricted mode)'
 echo '• claude "your prompt"           - Ask Claude anything (secure mode)'
+echo '• claude-flow init                - Initialize AI orchestration project'
+echo '• claude-flow --help             - Show claude-flow commands'
 echo '• screenshot <url> <file>        - Universal screenshot (auto-detect env)'
 echo '• playwright codegen             - Generate Playwright tests'
 echo '• playwright-test                - Run tests in .claude/PLAYWRIGHT'
