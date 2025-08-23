@@ -12,6 +12,15 @@ CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
 
+# Check if Claude credentials exist on host
+CLAUDE_CREDS_MOUNT=""
+if [ -f "$HOME/.config/claude/auth.json" ]; then
+    CLAUDE_CREDS_MOUNT="      - ${HOME}/.config/claude/auth.json:/home/claude/.config/claude/auth.json:ro"
+    echo "✓ Found Claude credentials, will mount them"
+else
+    echo "⚠ No Claude credentials found, you'll need to login with: claude auth login"
+fi
+
 # Create project-specific docker-compose file
 COMPOSE_FILE="/tmp/claude-dev-${PROJECT_BASE}-compose.yml"
 cat > "$COMPOSE_FILE" << EOF
@@ -25,6 +34,7 @@ services:
 
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
+${CLAUDE_CREDS_MOUNT}
 
     environment:
       - NODE_ENV=development

@@ -15,6 +15,16 @@ COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
 # Create project-specific MCP configuration
 MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
 mkdir -p "$MCP_CONFIG_DIR"
+
+# Check if Claude credentials exist on host
+CLAUDE_CREDS_MOUNT=""
+if [ -f "$HOME/.config/claude/auth.json" ]; then
+    CLAUDE_CREDS_MOUNT="      - ${HOME}/.config/claude/auth.json:/home/claude/.config/claude/auth.json:ro"
+    echo "✓ Found Claude credentials, will mount them"
+else
+    echo "⚠ No Claude credentials found, you'll need to login with: claude auth login"
+fi
+
 cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
 {
   "mcpServers": {
@@ -88,6 +98,7 @@ services:
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
       - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
+${CLAUDE_CREDS_MOUNT}
 
     environment:
       - NODE_ENV=development
