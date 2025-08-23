@@ -19,11 +19,9 @@ mkdir -p "$MCP_CONFIG_DIR"
 # Check for ANTHROPIC_API_KEY environment variable
 if [ -n "$ANTHROPIC_API_KEY" ]; then
     echo "✓ ANTHROPIC_API_KEY detected - Claude will use API key authentication"
-    API_KEY_ENV="      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
 else
     echo "ℹ No ANTHROPIC_API_KEY found - you'll need to run 'claude auth login' in the container"
     echo "  Or set: export ANTHROPIC_API_KEY='your-api-key'"
-    API_KEY_ENV=""
 fi
 
 cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
@@ -108,9 +106,9 @@ services:
       - PATH="/home/claude/.deno/bin:\$PATH"
       - DENO_INSTALL="/home/claude/.deno"
       - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
-${API_KEY_ENV}
       - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
       - PROJECT_PATH=${CURRENT_DIR}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 
     stdin_open: true
     tty: true

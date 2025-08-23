@@ -15,11 +15,9 @@ COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
 # Check for ANTHROPIC_API_KEY environment variable
 if [ -n "$ANTHROPIC_API_KEY" ]; then
     echo "✓ ANTHROPIC_API_KEY detected - Claude will use API key authentication"
-    API_KEY_ENV="      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
 else
     echo "ℹ No ANTHROPIC_API_KEY found - you'll need to run 'claude auth login' in the container"
     echo "  Or set: export ANTHROPIC_API_KEY='your-api-key'"
-    API_KEY_ENV=""
 fi
 
 # Create project-specific docker-compose file
@@ -41,8 +39,8 @@ services:
       - NPM_CONFIG_CACHE=/tmp/npm-cache
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
-${API_KEY_ENV}
       - PROJECT_PATH=${CURRENT_DIR}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 
     stdin_open: true
     tty: true
