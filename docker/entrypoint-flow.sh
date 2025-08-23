@@ -3,6 +3,10 @@
 # Set PATH to include Deno
 export PATH="/home/claude/.deno/bin:$PATH"
 
+echo '=============================================================================='
+echo 'Claude Dev Environment Starting...'
+echo '=============================================================================='
+echo ''
 # NPM uses temp directories - no setup needed
 
 # Detect project type
@@ -16,7 +20,6 @@ fi
 echo "🎯 $PROJECT_TYPE project detected"
 
 # Check for web server directory and start internal server
-echo ""
 echo "🌐 Setting up internal web server for Playwright..."
 if [ -d "/var/www/html/public" ]; then
     WEB_DIR="/var/www/html/public"
@@ -60,8 +63,6 @@ else
 fi
 
 echo ""
-echo 'Claude Flow Environment Starting...'
-echo '================================='
 echo 'Node.js version:' && node --version
 echo 'NPM version:' && npm --version
 echo 'Deno version:' && deno --version 2>/dev/null || echo 'deno: not found in PATH'
@@ -70,8 +71,9 @@ echo 'Claude Flow version:' && claude-flow --version 2>/dev/null || echo 'claude
 echo 'Playwright version:' && playwright --version
 echo ''
 
+echo '=============================================================================='
 echo 'Network Configuration:'
-echo '====================='
+echo '=============================================================================='
 echo 'Host Gateway: host.docker.internal'
 ping -c 1 host.docker.internal > /dev/null 2>&1 && echo '✓ Host connection: OK' || echo '✗ Host connection: FAILED'
 echo ''
@@ -102,18 +104,21 @@ echo 'Verifying browser installations...'
 ls -la /home/claude/.cache/ms-playwright/ 2>/dev/null || echo 'Browser cache not found, will be created on first use'
 echo ''
 
+echo '=============================================================================='
 echo 'MCP Servers Status:'
-echo '==================='
+echo '=============================================================================='
 echo '✓ Playwright MCP: @playwright/mcp'
-echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem' 
+echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem'
 echo '✓ Git MCP: mcp-server-git (Python)'
 echo ''
 
 echo '✓ Claude Flow Environment ready!'
 echo ''
 
+echo '=============================================================================='
 echo '📖 Quick Start Guide:'
-echo '===================='
+echo '=============================================================================='
+echo '• claude                         - Jump into Claude shell'
 echo '• claude "your prompt"           - Ask Claude anything'
 echo '• claude-flow                    - Start Claude Flow (if available)'
 echo '• playwright codegen             - Generate Playwright tests'

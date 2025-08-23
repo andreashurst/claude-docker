@@ -2,6 +2,10 @@
 
 # NPM uses temp directories - no setup needed
 
+echo '=============================================================================='
+echo 'Claude Dev Environment Starting...'
+echo '=============================================================================='
+echo ''
 # Detect project type
 if [ -d "/var/www/html/.ddev" ]; then
     PROJECT_TYPE="DDEV"
@@ -9,19 +13,14 @@ else
     PROJECT_TYPE="Standard"
 fi
 
-# Display project detection
-echo "🎯 $PROJECT_TYPE project detected"
-
-echo ""
-echo 'Claude Dev Environment Starting...'
-echo '================================='
 echo 'Node.js version:' && node --version
 echo 'NPM version:' && npm --version
 echo 'Claude Code version:' && claude --version
 echo ''
 
+echo '=============================================================================='
 echo 'Network Configuration:'
-echo '====================='
+echo '=============================================================================='
 echo 'Host Gateway: host.docker.internal'
 ping -c 1 host.docker.internal > /dev/null 2>&1 && echo '✓ Host connection: OK' || echo '✗ Host connection: FAILED'
 echo ''
@@ -44,8 +43,10 @@ echo ''
 echo '✓ Claude Dev Environment ready!'
 echo ''
 
+echo '=============================================================================='
 echo '📖 Quick Start Guide:'
-echo '===================='
+echo '=============================================================================='
+echo '• claude                         - Jump into Claude shell'
 echo '• claude "your prompt"           - Ask Claude anything'
 echo '• claude --help                  - Show all Claude options'
 echo '• claude auth login              - Login to Claude (if needed)'
