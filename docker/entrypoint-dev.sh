@@ -2,6 +2,10 @@
 
 # NPM uses temp directories - no setup needed
 
+# Create aliases for Claude - secure by default
+echo 'alias claude-insecure="/usr/bin/claude"' >> ~/.bashrc
+echo 'alias claude="/usr/bin/claude --settings /home/claude/.claude/settings.local.json"' >> ~/.bashrc
+
 echo '=============================================================================='
 echo 'Claude Dev Environment Starting...'
 echo '=============================================================================='
@@ -40,19 +44,33 @@ echo '  test-port 3000'
 echo '  curl -I http://host.docker.internal:3000'
 echo ''
 
+echo '=============================================================================='
+echo 'Claude Security Settings (DEV MODE):'
+echo '=============================================================================='
+echo '✓ Config file: /home/claude/.claude/settings.local.json'
+echo '✓ Mode: SECURE by default (use claude-insecure for unrestricted)'
+echo '✓ Blocked: sudo, rm -rf /*, chmod 777 /*, systemctl'
+echo '✓ Allowed: git, npm, node, all safe file operations'
+echo ''
+
 echo '✓ Claude Dev Environment ready!'
 echo ''
 
 echo '=============================================================================='
 echo '📖 Quick Start Guide:'
 echo '=============================================================================='
-echo '• claude                         - Jump into Claude shell'
-echo '• claude "your prompt"           - Ask Claude anything'
+echo '• claude                         - Claude shell (SECURE by default)'
+echo '• claude-insecure                - Claude shell (unrestricted mode)'
+echo '• claude "your prompt"           - Ask Claude anything (secure mode)'
 echo '• claude --help                  - Show all Claude options'
 echo '• claude auth login              - Login to Claude (if needed)'
 echo '• ls                             - List files in your project'
 echo '• git status                     - Check git status'
 echo '• exit                           - Leave container'
+echo ''
+echo '🔒 Security Mode: Lighter restrictions than claude-flow'
+echo '   ✓ Git commands allowed'
+echo '   ✗ Sudo and dangerous rm commands blocked'
 echo ''
 echo '💡 Your project is mounted at /var/www/html'
 echo '💡 Changes persist on your host system'

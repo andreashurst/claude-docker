@@ -2,7 +2,7 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@anthropic-ai/mcp-server-playwright"],
+      "args": ["@playwright/mcp"],
       "env": {
         "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
       }
@@ -12,8 +12,8 @@
       "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
     },
     "git": {
-      "command": "npx",
-      "args": ["@modelcontextprotocol/server-git", "--repository", "/var/www/html"]
+      "command": "python3",
+      "args": ["-m", "mcp_server_git", "--repository", "/var/www/html"]
     }
   },
   "environmentInfo": {

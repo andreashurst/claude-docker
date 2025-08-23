@@ -3,11 +3,23 @@
 # Set PATH to include Deno
 export PATH="/home/claude/.deno/bin:$PATH"
 
+# Create aliases for Claude - secure by default
+echo 'alias claude-insecure="/usr/bin/claude"' >> ~/.bashrc
+echo 'alias claude="/usr/bin/claude --settings /home/claude/.claude/settings.local.json"' >> ~/.bashrc
+
 echo '=============================================================================='
 echo 'Claude Dev Environment Starting...'
 echo '=============================================================================='
 echo ''
 # NPM uses temp directories - no setup needed
+
+# Create Claude working directories based on settings.local.json
+echo "📁 Setting up Claude working directories..."
+mkdir -p /var/www/html/.claude/TMP
+mkdir -p /var/www/html/.claude/PLAYWRIGHT
+mkdir -p /var/www/html/.claude/PLAYWRIGHT/test-results
+mkdir -p /var/www/html/.claude/PLAYWRIGHT/screenshots
+echo "✓ Claude directories created"
 
 # Detect project type
 if [ -d "/var/www/html/.ddev" ]; then
@@ -112,14 +124,26 @@ echo '✓ Filesystem MCP: @modelcontextprotocol/server-filesystem'
 echo '✓ Git MCP: mcp-server-git (Python)'
 echo ''
 
+echo '=============================================================================='
+echo 'Claude Security Settings (DEFAULT):'
+echo '=============================================================================='
+echo '✓ Config file: /home/claude/.claude/settings.local.json'
+echo '✓ Mode: SECURE by default (use claude-insecure for unrestricted)'
+echo '✓ Blocked: git, sudo, rm -rf, system packages, chmod 777'
+echo '✓ Allowed: npm, node, playwright, safe file operations'
+echo '✓ Playwright test directory: /var/www/html/.claude/PLAYWRIGHT'
+echo '✓ Temporary files: /var/www/html/.claude/TMP'
+echo ''
+
 echo '✓ Claude Flow Environment ready!'
 echo ''
 
 echo '=============================================================================='
 echo '📖 Quick Start Guide:'
 echo '=============================================================================='
-echo '• claude                         - Jump into Claude shell'
-echo '• claude "your prompt"           - Ask Claude anything'
+echo '• claude                         - Claude shell (SECURE by default)'
+echo '• claude-insecure                - Claude shell (unrestricted mode)'
+echo '• claude "your prompt"           - Ask Claude anything (secure mode)'
 echo '• claude-flow                    - Start Claude Flow (if available)'
 echo '• playwright codegen             - Generate Playwright tests'
 echo '• deno run script.ts             - Run TypeScript with Deno'

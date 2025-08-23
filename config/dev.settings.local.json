@@ -1,0 +1,64 @@
+{
+  "enforcement": {
+    "never_rules": true,
+    "abort_on_violation": true,
+    "log_violations": true,
+    "strict_mode": false
+  },
+  "permissions": {
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf /*)",
+      "Bash(chmod 777:*)",
+      "Bash(chown root:*)",
+      "Bash(systemctl:*)",
+      "Bash(apt-get:*)",
+      "Bash(apt:*)",
+      "Bash(apk add:*)"
+    ],
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(find:*)",
+      "Bash(npx:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(echo:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(test:*)",
+      "Bash(make:*)"
+    ]
+  },
+  "paths": {
+    "allowed_writes": [
+      "/var/www/html/**",
+      "/tmp/**"
+    ],
+    "forbidden_writes": [
+      "/etc/**",
+      "/usr/**",
+      "/bin/**",
+      "/root/**",
+      "/home/claude/.claude/settings.local.json"
+    ]
+  },
+  "validation": {
+    "check_before_execute": true,
+    "check_before_write": true,
+    "reject_on_violation": true,
+    "log_all_attempts": false
+  }
+}

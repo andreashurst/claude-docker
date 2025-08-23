@@ -54,9 +54,16 @@ nc -z -v -w5 host.docker.internal $PORT 2>/dev/null && echo "Port $PORT: OPEN" |
 COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Copy Claude settings configuration for dev environment
+COPY config/dev.settings.local.json /home/claude/.claude/settings.local.json
+
 # Create config directory for Claude
 RUN mkdir -p /home/claude/.config && \
-    chown -R claude:claude /home/claude/.config
+    mkdir -p /home/claude/.claude && \
+    chown -R claude:claude /home/claude/.config && \
+    chown -R claude:claude /home/claude/.claude && \
+    chown claude:claude /home/claude/.claude/settings.local.json && \
+    chmod 644 /home/claude/.claude/settings.local.json
 
 # NPM will use temp directories automatically
 ENV NPM_CONFIG_CACHE=/tmp/npm-cache
