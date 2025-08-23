@@ -16,13 +16,14 @@ COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
 MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
 mkdir -p "$MCP_CONFIG_DIR"
 
-# Check if Claude credentials exist on host
-CLAUDE_CREDS_MOUNT=""
-if [ -f "$HOME/.config/claude/auth.json" ]; then
-    CLAUDE_CREDS_MOUNT="      - ${HOME}/.config/claude/auth.json:/home/claude/.config/claude/auth.json:ro"
-    echo "✓ Found Claude credentials, will mount them"
+# Check for ANTHROPIC_API_KEY environment variable
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo "✓ ANTHROPIC_API_KEY detected - Claude will use API key authentication"
+    API_KEY_ENV="      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
 else
-    echo "⚠ No Claude credentials found, you'll need to login with: claude auth login"
+    echo "ℹ No ANTHROPIC_API_KEY found - you'll need to run 'claude auth login' in the container"
+    echo "  Or set: export ANTHROPIC_API_KEY='your-api-key'"
+    API_KEY_ENV=""
 fi
 
 cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
@@ -98,7 +99,6 @@ services:
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
       - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
-${CLAUDE_CREDS_MOUNT}
 
     environment:
       - NODE_ENV=development
@@ -108,6 +108,7 @@ ${CLAUDE_CREDS_MOUNT}
       - PATH="/home/claude/.deno/bin:\$PATH"
       - DENO_INSTALL="/home/claude/.deno"
       - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+${API_KEY_ENV}
       - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
       - PROJECT_PATH=${CURRENT_DIR}
 

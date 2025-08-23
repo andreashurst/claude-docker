@@ -12,13 +12,14 @@ CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
 
-# Check if Claude credentials exist on host
-CLAUDE_CREDS_MOUNT=""
-if [ -f "$HOME/.config/claude/auth.json" ]; then
-    CLAUDE_CREDS_MOUNT="      - ${HOME}/.config/claude/auth.json:/home/claude/.config/claude/auth.json:ro"
-    echo "✓ Found Claude credentials, will mount them"
+# Check for ANTHROPIC_API_KEY environment variable
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo "✓ ANTHROPIC_API_KEY detected - Claude will use API key authentication"
+    API_KEY_ENV="      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
 else
-    echo "⚠ No Claude credentials found, you'll need to login with: claude auth login"
+    echo "ℹ No ANTHROPIC_API_KEY found - you'll need to run 'claude auth login' in the container"
+    echo "  Or set: export ANTHROPIC_API_KEY='your-api-key'"
+    API_KEY_ENV=""
 fi
 
 # Create project-specific docker-compose file
@@ -34,13 +35,13 @@ services:
 
     volumes:
       - ${CURRENT_DIR}:/var/www/html:cached
-${CLAUDE_CREDS_MOUNT}
 
     environment:
       - NODE_ENV=development
       - NPM_CONFIG_CACHE=/tmp/npm-cache
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
+${API_KEY_ENV}
       - PROJECT_PATH=${CURRENT_DIR}
 
     stdin_open: true
