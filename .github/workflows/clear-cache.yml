@@ -1,0 +1,68 @@
+name: Clear Cache and Rebuild
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile.*'
+      - 'docker/**'
+      - 'config/**'
+
+jobs:
+  clear-and-rebuild:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_TOKEN }}
+    
+    # Clear GitHub Actions cache
+    - name: Clear GitHub Actions cache
+      uses: actions/github-script@v6
+      with:
+        script: |
+          console.log("Clearing GitHub Actions cache...")
+          const caches = await github.rest.actions.getActionsCacheList({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          })
+          for (const cache of caches.data.actions_caches) {
+            console.log(`Deleting cache: ${cache.key}`)
+            await github.rest.actions.deleteActionsCacheById({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              cache_id: cache.id,
+            })
+          }
+    
+    # Build with no cache
+    - name: Build and push claude-flow (no cache)
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.flow
+        push: true
+        no-cache: true
+        tags: |
+          andreashurst/claude-docker:latest-flow
+          andreashurst/claude-docker:flow-${{ github.sha }}
+    
+    - name: Build and push claude-dev (no cache)
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.dev
+        push: true
+        no-cache: true
+        tags: |
+          andreashurst/claude-docker:latest-dev
+          andreashurst/claude-docker:dev-${{ github.sha }}
