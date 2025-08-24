@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 
 /**
  * Example Playwright test with Vite dev server integration
- * Place this in /var/www/html/.claude/PLAYWRIGHT/tests/
+ * Place this in /var/www/html/playwright/tests/
  */
 
 // Helper to rewrite Vite URLs for Docker environment

@@ -25,7 +25,7 @@
         "test": "playwright-test - Run all tests",
         "ui": "playwright-ui - Run with UI mode"
       },
-      "testDirectory": "/var/www/html/.claude/PLAYWRIGHT"
+      "testDirectory": "/var/www/html/playwright"
     },
     "hostNetworking": {
       "hostGateway": "host.docker.internal",

@@ -71,6 +71,8 @@ COPY config/flow.settings.local.template.json /home/claude/.claude/settings.loca
 COPY config/flow.universal-screenshot.mjs /usr/local/bin/screenshot
 COPY config/flow.playwright.config.example.js /usr/local/share/claude/examples/playwright.config.js
 COPY config/flow.example-vite-test.spec.js /usr/local/share/claude/examples/example-test.spec.js
+COPY docs/NETWORKING.md /usr/local/share/docs/NETWORKING.md
+COPY docs/PLAYWRIGHT.md /usr/local/share/docs/PLAYWRIGHT.md
 RUN chmod +x /usr/local/bin/screenshot && \
     mkdir -p /usr/local/share/claude/examples
 

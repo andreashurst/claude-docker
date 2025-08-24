@@ -45,16 +45,16 @@ The `screenshot` command automatically detects and adapts to your environment:
 
 ```bash
 # Copy example configuration
-cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/.claude/PLAYWRIGHT/playwright.config.js
+cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/playwright/playwright.config.js
 
 # Copy example test
-cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/.claude/PLAYWRIGHT/tests/example.spec.js
+cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwright/tests/example.spec.js
 ```
 
 ### Test Structure
 
 ```
-/var/www/html/.claude/PLAYWRIGHT/
+/var/www/html/playwright/
 ├── tests/              # Your test files
 ├── screenshots/        # Screenshot outputs
 ├── test-results/       # Test results and reports
@@ -69,11 +69,11 @@ const { test, expect } = require('@playwright/test');
 test('homepage loads', async ({ page }) => {
   await page.goto('http://localhost');
   await expect(page).toHaveTitle(/My Site/);
-  
+
   // Screenshot with automatic environment handling
-  await page.screenshot({ 
+  await page.screenshot({
     path: './screenshots/homepage.png',
-    fullPage: true 
+    fullPage: true
   });
 });
 ```

@@ -3,7 +3,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 /**
  * Playwright configuration for Docker environment
- * Place this in /var/www/html/.claude/PLAYWRIGHT/playwright.config.js
+ * Place this in /var/www/html/playwright/playwright.config.js
  */
 module.exports = defineConfig({
   testDir: './tests',

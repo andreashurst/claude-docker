@@ -71,9 +71,9 @@
   },
   "playwright": {
     "enabled": true,
-    "test_directory": "/var/www/html/.claude/PLAYWRIGHT",
-    "output_directory": "/var/www/html/.claude/PLAYWRIGHT/test-results",
-    "screenshot_directory": "/var/www/html/.claude/PLAYWRIGHT/screenshots",
+    "test_directory": "/var/www/html/playwright",
+    "output_directory": "/var/www/html/playwright/test-results",
+    "screenshot_directory": "/var/www/html/playwright/screenshots",
     "commands": {
       "screenshot": "playwright screenshot",
       "pdf": "playwright pdf",
