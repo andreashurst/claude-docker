@@ -51,8 +51,13 @@ nc -z -v -w5 host.docker.internal $PORT 2>/dev/null && echo "Port $PORT: OPEN" |
     chmod +x /usr/local/bin/test-port
 
 # Copy entrypoint script and make executable
-COPY docker/entrypoint-dev.sh /usr/local/bin/entrypoint.sh
+COPY docker/entrypoint.dev.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Copy helper scripts
+COPY bin/claude-info /bin/claude-info
+COPY bin/claude-help /bin/claude-help
+RUN chmod +x /bin/claude-info /bin/claude-help
 
 # Copy Claude settings configuration for dev environment
 COPY config/dev.settings.local.json /home/claude/.claude/settings.local.json

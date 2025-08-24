@@ -60,9 +60,13 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
 # Copy entrypoint script
-COPY docker/entrypoint-flow.sh /usr/local/bin/entrypoint.sh
-COPY docker/info-flow.sh /usr/local/bin/entrypoint.sh
+COPY docker/entrypoint.flow.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Copy helper scripts
+COPY bin/claude-flow-info /bin/claude-flow-info
+COPY bin/claude-flow-help /bin/claude-flow-help
+RUN chmod +x /bin/claude-flow-info /bin/claude-flow-help
 
 # Copy Claude settings configuration
 COPY config/flow.settings.local.template.json /home/claude/.claude/settings.local.json

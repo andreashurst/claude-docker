@@ -59,14 +59,41 @@ if [ -f "/config/flow.settings.local.json" ]; then
     echo "✓ Claude flow settings copied to /home/claude/.claude/settings.local.json"
 fi
 
+# Copy examples from container to mounted volume if they don't exist
+mkdir -p /var/www/html/playwright/examples
+mkdir -p /var/www/html/docs
+
+# Copy Playwright config example to mounted volume if it doesn't exist
+if [ ! -f "/var/www/html/playwright/examples/playwright.config.js" ] && [ -f "/usr/local/share/claude/examples/playwright.config.js" ]; then
+    cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/playwright/examples/playwright.config.js
+    echo "✓ Playwright config example copied to /var/www/html/playwright/examples/playwright.config.js"
+fi
+
+# Copy example test to mounted volume if it doesn't exist
+if [ ! -f "/var/www/html/playwright/examples/example-test.spec.js" ] && [ -f "/usr/local/share/claude/examples/example-test.spec.js" ]; then
+    cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwright/examples/example-test.spec.js
+    echo "✓ Example test copied to /var/www/html/playwright/examples/example-test.spec.js"
+fi
+
+# Copy documentation to mounted volume if they don't exist
+if [ ! -f "/var/www/html/docs/PLAYWRIGHT.md" ] && [ -f "/usr/local/share/docs/PLAYWRIGHT.md" ]; then
+    cp /usr/local/share/docs/PLAYWRIGHT.md /var/www/html/docs/PLAYWRIGHT.md
+    echo "✓ Playwright documentation copied to /var/www/html/docs/PLAYWRIGHT.md"
+fi
+
+if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
+    cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/NETWORKING.md
+    echo "✓ Networking documentation copied to /var/www/html/docs/NETWORKING.md"
+fi
+
 # Copy Flow-specific info scripts to accessible location
-if [ -f "/docker/claude-flow.info.sh" ]; then
-    cp /docker/claude-flow.info.sh /usr/local/bin/claude-info
+if [ -f "/bin/claude-flow-info" ]; then
+    cp /bin/claude-flow-info /usr/local/bin/claude-info
     chmod +x /usr/local/bin/claude-info
 fi
 
-if [ -f "/docker/claude-flow.help.sh" ]; then
-    cp /docker/claude-flow.help.sh /usr/local/bin/claude-help
+if [ -f "/bin/claude-flow-help" ]; then
+    cp /bin/claude-flow-help /usr/local/bin/claude-help
     chmod +x /usr/local/bin/claude-help
 fi
 

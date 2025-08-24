@@ -3,7 +3,12 @@ const { test, expect } = require('@playwright/test');
 
 /**
  * Example Playwright test with Vite dev server integration
- * Place this in /var/www/html/playwright/tests/
+ * 
+ * Usage:
+ * 1. Copy this file to your test directory:
+ *    cp /usr/local/share/claude/examples/example-test.spec.js ./tests/example.spec.js
+ * 
+ * 2. Modify the test cases to match your application
  */
 
 // Helper to rewrite Vite URLs for Docker environment

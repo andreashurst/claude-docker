@@ -3,7 +3,12 @@ const { defineConfig, devices } = require('@playwright/test');
 
 /**
  * Playwright configuration for Docker environment
- * Place this in /var/www/html/playwright/playwright.config.js
+ * 
+ * Usage:
+ * 1. Copy this file to your project:
+ *    cp /usr/local/share/claude/examples/playwright.config.js ./playwright.config.js
+ * 
+ * 2. Adjust testDir and other paths as needed for your project structure
  */
 module.exports = defineConfig({
   testDir: './tests',

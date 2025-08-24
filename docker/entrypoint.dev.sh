@@ -11,12 +11,12 @@ if [ -d "/var/www/html/.ddev" ]; then
     # Extract project details from .ddev/config.yaml
     if [ -f "/var/www/html/.ddev/config.yaml" ]; then
         PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
+
         # Try to get URLs in priority order
         ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
         ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
         PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
+
         if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
             DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
         elif [ -n "$ADDITIONAL_HOSTNAMES" ] && [ "$ADDITIONAL_HOSTNAMES" != "" ]; then
@@ -55,14 +55,22 @@ if [ -f "/config/dev.settings.local.json" ]; then
     echo "✓ Claude dev settings copied to /root/.claude/settings.local.json"
 fi
 
+# Copy documentation to mounted volume if they don't exist
+mkdir -p /var/www/html/docs/testing
+
+if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/testing/NETWORKING.md" ]; then
+    cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/testing/NETWORKING.md
+    echo "✓ Networking documentation copied to /var/www/html/docs/testing/NETWORKING.md"
+fi
+
 # Copy info scripts to accessible location
-if [ -f "/docker/claude.info.sh" ]; then
-    cp /docker/claude.info.sh /usr/local/bin/claude-info
+if [ -f "/bin/claude-info" ]; then
+    cp /bin/claude-info /usr/local/bin/claude-info
     chmod +x /usr/local/bin/claude-info
 fi
 
-if [ -f "/docker/claude.help.sh" ]; then
-    cp /docker/claude.help.sh /usr/local/bin/claude-help
+if [ -f "/bin/claude-help" ]; then
+    cp /bin/claude-help /usr/local/bin/claude-help
     chmod +x /usr/local/bin/claude-help
 fi
 
