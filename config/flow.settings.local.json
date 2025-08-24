@@ -39,7 +39,12 @@
       "Bash(sort:*)",
       "Bash(uniq:*)",
       "Bash(test:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(playwright:*)",
+      "Bash(deno:*)",
+      "Bash(python3:*)",
+      "Bash(pip3:*)",
+      "Bash(claude-flow:*)"
     ]
   },
   "paths": {
@@ -48,11 +53,38 @@
       "/usr/**",
       "/bin/**",
       "/root/**",
-      "/home/claude/.claude/settings.local.json"x
+      "/home/claude/.claude/settings.local.json"
     ]
   },
   "validation": {
     "check_before_execute": true,
     "check_before_write": true
+  },
+  "claude-flow": {
+    "environment": "flow",
+    "description": "Claude Flow Container Settings",
+    "features": {
+      "claude-code": true,
+      "claude-flow": true,
+      "mcp-servers": true,
+      "playwright": true,
+      "deno": true,
+      "python": true
+    },
+    "paths": {
+      "project": "/var/www/html",
+      "config": "/home/claude/.claude",
+      "playwright_browsers": "/home/claude/.cache/ms-playwright",
+      "deno_install": "/home/claude/.deno"
+    },
+    "network": {
+      "host": "host.docker.internal",
+      "frontend_url": "${FRONTEND_URL}"
+    },
+    "mcp_servers": [
+      "@playwright/mcp",
+      "@modelcontextprotocol/server-filesystem",
+      "mcp-server-git"
+    ]
   }
 }

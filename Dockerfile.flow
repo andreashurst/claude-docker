@@ -47,8 +47,10 @@ RUN npm install -g playwright@latest && \
     npx playwright install --with-deps chromium firefox webkit && \
     npx playwright install-deps
 
-# Install Claude Flow orchestration tool
-RUN npm install -g claude-flow@2.0.0-alpha.91
+# Install Claude Flow orchestration tool and verify installation
+RUN npm install -g claude-flow@2.0.0-alpha.91 && \
+    which claude-flow && \
+    claude-flow --version || echo "claude-flow installation verification failed"
 
 # Install MCP servers for Claude Code integration
 RUN npm install -g @playwright/mcp
@@ -57,8 +59,9 @@ RUN npm install -g @modelcontextprotocol/server-filesystem
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
-# Copy entrypoint script and make executable
+# Copy entrypoint script
 COPY docker/entrypoint-flow.sh /usr/local/bin/entrypoint.sh
+COPY docker/info-flow.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Copy Claude settings configuration
