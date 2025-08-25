@@ -14,12 +14,12 @@ if [ -d "/var/www/html/.ddev" ]; then
     # Extract project details from .ddev/config.yaml
     if [ -f "/var/www/html/.ddev/config.yaml" ]; then
         PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
+
         # Try to get URLs in priority order
         ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
         ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
         PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-        
+
         if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
             DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
         elif [ -n "$ADDITIONAL_HOSTNAMES" ] && [ "$ADDITIONAL_HOSTNAMES" != "" ]; then
@@ -52,11 +52,10 @@ export FRONTEND_URL=${FRONTEND_INPUT:-$DEFAULT_URL}
 echo "export FRONTEND_URL='$FRONTEND_URL'" > /home/claude/.claude_env
 
 # Copy Claude settings if available
-if [ -f "/config/flow.settings.local.json" ]; then
-    mkdir -p /home/claude/.claude
-    cp /config/flow.settings.local.json /home/claude/.claude/settings.local.json
-    chown -R claude:claude /home/claude/.claude
-    echo "✓ Claude flow settings copied to /home/claude/.claude/settings.local.json"
+if [ ! -f "/var/www/html/.claude/settings.local.json" ] && [ -f "/home/claude/.claude/settings.local.json" ]; then
+    mkdir -p /var/www/html/.claude
+    cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json /var/www/html
+    chown -R claude:claude /var/www/html/.claude
 fi
 
 # Copy examples from container to mounted volume if they don't exist
@@ -66,24 +65,20 @@ mkdir -p /var/www/html/docs
 # Copy Playwright config example to mounted volume if it doesn't exist
 if [ ! -f "/var/www/html/playwright/examples/playwright.config.js" ] && [ -f "/usr/local/share/claude/examples/playwright.config.js" ]; then
     cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/playwright/examples/playwright.config.js
-    echo "✓ Playwright config example copied to /var/www/html/playwright/examples/playwright.config.js"
 fi
 
 # Copy example test to mounted volume if it doesn't exist
 if [ ! -f "/var/www/html/playwright/examples/example-test.spec.js" ] && [ -f "/usr/local/share/claude/examples/example-test.spec.js" ]; then
     cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwright/examples/example-test.spec.js
-    echo "✓ Example test copied to /var/www/html/playwright/examples/example-test.spec.js"
 fi
 
 # Copy documentation to mounted volume if they don't exist
 if [ ! -f "/var/www/html/docs/PLAYWRIGHT.md" ] && [ -f "/usr/local/share/docs/PLAYWRIGHT.md" ]; then
     cp /usr/local/share/docs/PLAYWRIGHT.md /var/www/html/docs/PLAYWRIGHT.md
-    echo "✓ Playwright documentation copied to /var/www/html/docs/PLAYWRIGHT.md"
 fi
 
 if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
     cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/NETWORKING.md
-    echo "✓ Networking documentation copied to /var/www/html/docs/NETWORKING.md"
 fi
 
 # Copy Flow-specific info scripts to accessible location

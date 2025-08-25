@@ -49,10 +49,10 @@ export FRONTEND_URL=${FRONTEND_INPUT:-$DEFAULT_URL}
 echo "export FRONTEND_URL='$FRONTEND_URL'" > /root/.claude_env
 
 # Copy Claude settings if available
-if [ -f "/config/dev.settings.local.json" ]; then
-    mkdir -p /root/.claude
-    cp /config/dev.settings.local.json /root/.claude/settings.local.json
-    echo "✓ Claude dev settings copied to /root/.claude/settings.local.json"
+if [ ! -f "/var/www/html/.claude/settings.local.json" ] && [ -f "/home/claude/.claude/settings.local.json" ]; then
+    mkdir -p /var/www/html/.claude
+    cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json /var/www/html
+    chown -R claude:claude /var/www/html/.claude
 fi
 
 # Copy documentation to mounted volume if they don't exist

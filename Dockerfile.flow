@@ -69,7 +69,7 @@ COPY bin/claude-flow-help /bin/claude-flow-help
 RUN chmod +x /bin/claude-flow-info /bin/claude-flow-help
 
 # Copy Claude settings configuration
-COPY config/flow.settings.local.template.json /home/claude/.claude/settings.local.json
+COPY config/flow.settings.local.json /home/claude/.claude/settings.local.json
 
 # Copy Playwright scripts and examples
 COPY config/flow.universal-screenshot.mjs /usr/local/bin/screenshot

@@ -7,49 +7,35 @@
   },
   "permissions": {
     "deny": [
-      "Bash(sudo:*)",
-      "Bash(rm -rf /*)",
+      "Bash(git:*)",
       "Bash(chmod 777:*)",
-      "Bash(chown root:*)",
-      "Bash(systemctl:*)",
+      "Bash(chown:*)",
       "Bash(apt-get:*)",
       "Bash(apt:*)",
-      "Bash(apk add:*)"
+      "Bash(dpkg:*)",
+      "Bash(yum:*)",
+      "Bash(brew:*)"
     ],
-    "allow": [
-      "Bash(mkdir:*)",
-      "Bash(mv:*)",
-      "Bash(cp:*)",
-      "Bash(find:*)",
-      "Bash(npx:*)",
-      "Bash(npm:*)",
-      "Bash(node:*)",
-      "Bash(git:*)",
-      "Bash(curl:*)",
-      "Bash(wget:*)",
-      "Bash(cat:*)",
-      "Bash(ls:*)",
-      "Bash(grep:*)",
-      "Bash(echo:*)",
-      "Bash(sed:*)",
-      "Bash(awk:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(wc:*)",
-      "Bash(sort:*)",
-      "Bash(uniq:*)",
-      "Bash(test:*)",
-      "Bash(make:*)"
-    ]
+    "allow": []
   },
   "paths": {
-    "forbidden_writes": [
-      "/etc/**",
-      "/usr/**",
-      "/bin/**",
-      "/root/**",
-      "/home/claude/.claude/settings.local.json"x
-    ]
+      "forbidden_writes": [
+        "/var/www/html/**",
+        "/var/www/html/.git/**",
+        "/var/www/html/vendor/**",
+        "/var/www/html/node_modules/**",
+        "/var/www/html/public/typo3/**",
+        "/var/www/html/config/**",
+        "/var/www/html/var/**",
+        "/etc/**",
+        "/usr/**",
+        "/bin/**",
+        "/root/**",
+        "/var/www/html/.claude/settings.local.json",
+        "/var/www/html/*.lock",
+        "/var/www/html/composer.json",
+        "/var/www/html/package.json"
+      ]
   },
   "validation": {
     "check_before_execute": true,
