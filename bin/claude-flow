@@ -12,13 +12,29 @@ CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
 
+# Setup cleanup trap
+cleanup() {
+    if [ -n "$COMPOSE_FILE" ] && [ -f "$COMPOSE_FILE" ]; then
+        rm -f "$COMPOSE_FILE"
+    fi
+    if [ -n "$MCP_CONFIG_DIR" ] && [ -d "$MCP_CONFIG_DIR" ]; then
+        rm -rf "$MCP_CONFIG_DIR"
+    fi
+}
+trap cleanup EXIT
+
 # Create project-specific MCP configuration
 MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
+# Remove if exists (in case it was created as a file by mistake)
+rm -rf "$MCP_CONFIG_DIR" 2>/dev/null
 mkdir -p "$MCP_CONFIG_DIR"
 
 # Check for CLAUDECODE_API_KEY environment variable
-if [ -n "$CLAUDECODE_API_KEY" ]; then
-    echo "✓ CLAUDECODE_API_KEY detected - Claude will use API key authentication"
+if [ -f ~/.claude-code/CLAUDECODE_API_KEY ]; then
+    CLAUDECODE_API_KEY=$(cat ~/.claude-code/CLAUDECODE_API_KEY)
+    echo "✓ CLAUDECODE_API_KEY detected from file - Claude will use API key authentication"
+elif [ -n "$CLAUDECODE_API_KEY" ]; then
+    echo "✓ CLAUDECODE_API_KEY detected from environment - Claude will use API key authentication"
 else
     echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
     echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
@@ -139,6 +155,5 @@ else
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
 fi
 
-# Clean up temporary files (container keeps running)
-rm -f "$COMPOSE_FILE"
-rm -rf "$MCP_CONFIG_DIR"
+# Note: Temporary files are cleaned up when script exits
+# Container continues running in the background
