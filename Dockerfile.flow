@@ -87,14 +87,14 @@ RUN mkdir -p /home/claude/.config/claude && \
     chown -R claude:claude /home/claude/.config && \
     chown -R claude:claude /home/claude/.claude && \
     chown claude:claude /home/claude/.claude/settings.local.json && \
-    chmod 644 /home/claude/.claude/settings.local.json
+    chmod 644 /home/claude/.claude/settings.local.json \
     echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Copy all scripts and tools
 COPY bin/* /usr/local/bin/
 COPY scripts/* /usr/local/share/claude/
 
-Make everything executable
+# Make everything executable
 RUN chmod +x /usr/local/bin/* && \
    chmod +x /usr/local/share/claude/*
 
@@ -104,7 +104,12 @@ RUN mkdir -p /home/claude/.cache/ms-playwright && \
     chown -R claude:claude /home/claude/.cache/ms-playwright
 
 # NPM will use temp directories automatically
-ENV NPM_CONFIG_CACHE=/tmp/npm-cache
+ENV NPM_CONFIG_CACHE=/tmp/npm-cache \
+    PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
+    NODE_ENV=development \
+    DOCKER_ENV=true \
+    AUTH_DIR=/home/claude/.claude-auth
+
 
 # Create network testing scripts
 RUN echo '#!/bin/bash\n\
