@@ -16,10 +16,6 @@ These scripts:
 5. Set up .bashrc for automatic info display on login
 6. Start the interactive shell
 
-### Information Display Scripts
-- **claude.info.sh**: Shows environment info on each login
-- **claude.help.sh**: Extended help documentation (run with `claude-help`)
-
 ## How it Works
 
 1. **On Container Start**:
