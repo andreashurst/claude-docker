@@ -12,12 +12,12 @@ CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
 
-# Check for ANTHROPIC_API_KEY environment variable
-if [ -n "$ANTHROPIC_API_KEY" ]; then
-    echo "✓ ANTHROPIC_API_KEY detected - Claude will use API key authentication"
+# Check for CLAUDECODE_API_KEY environment variable
+if [ -n "$CLAUDECODE_API_KEY" ]; then
+    echo "✓ CLAUDECODE_API_KEY detected - Claude will use API key authentication"
 else
-    echo "ℹ No ANTHROPIC_API_KEY found - you'll need to run 'claude auth login' in the container"
-    echo "  Or set: export ANTHROPIC_API_KEY='your-api-key'"
+    echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
+    echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
 fi
 
 # Create project-specific docker-compose file
@@ -40,7 +40,7 @@ services:
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
       - PROJECT_PATH=${CURRENT_DIR}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_API_KEY=${CLAUDECODE_API_KEY:-}
 
     stdin_open: true
     tty: true

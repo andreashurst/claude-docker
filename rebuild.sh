@@ -17,20 +17,22 @@ docker volume prune -f
 # 2. Build with absolutely no cache
 echo ""
 echo "Step 2: Building with --no-cache and --pull..."
-docker build \
+docker buildx build \
   --no-cache \
   --pull \
   --force-rm \
-  -f Dockerfile.flow \
-  -t andreashurst/claude-docker:latest-flow \
+  -f "Dockerfile.flow" \
+  --platform "linux/amd64,linux/arm64" \
+  -t "andreashurst/claude-docker:latest-flow" \
   .
 
-docker build \
+docker buildx build \
   --no-cache \
   --pull \
   --force-rm \
-  -f Dockerfile.dev \
-  -t andreashurst/claude-docker:latest-dev \
+  -f "Dockerfile.dev" \
+  --platform "linux/amd64,linux/arm64" \
+  -t "andreashurst/claude-docker:latest-dev" \
   .
 
 # 3. Login and push
