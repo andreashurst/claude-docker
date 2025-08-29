@@ -6,8 +6,6 @@ echo "========================="
 
 # 1. Clean local Docker
 echo "Step 1: Cleaning local Docker..."
-docker stop $(docker ps -aq) 2>/dev/null || true
-docker rm $(docker ps -aq) 2>/dev/null || true
 docker rmi andreashurst/claude-docker:latest-flow 2>/dev/null || true
 docker rmi andreashurst/claude-docker:latest-dev 2>/dev/null || true
 docker system prune -a -f
