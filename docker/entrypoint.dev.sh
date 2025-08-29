@@ -63,17 +63,6 @@ if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/te
     echo "✓ Networking documentation copied to /var/www/html/docs/testing/NETWORKING.md"
 fi
 
-# Copy info scripts to accessible location
-if [ -f "/bin/claude-info" ]; then
-    cp /bin/claude-info /usr/local/bin/claude-info
-    chmod +x /usr/local/bin/claude-info
-fi
-
-if [ -f "/bin/claude-help" ]; then
-    cp /bin/claude-help /usr/local/bin/claude-help
-    chmod +x /usr/local/bin/claude-help
-fi
-
 # Set up bash profile for root user
 cat > /root/.bashrc << 'EOF'
 # Claude Dev Environment Bash Configuration

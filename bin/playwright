@@ -1,0 +1,73 @@
+#!/bin/bash
+# Playwright Universal Wrapper - Production Version
+# Automatically handles DDEV, Docker, and Vite environments
+
+set -eo pipefail
+
+# Environment detection
+detect_environment() {
+    if [ -f ".ddev/config.yaml" ]; then
+        PROJECT_NAME=$(grep "^name:" .ddev/config.yaml 2>/dev/null | sed 's/name: *//' || echo "project")
+        PROJECT_TLD=$(grep "^project_tld:" .ddev/config.yaml 2>/dev/null | sed 's/project_tld: *//' || echo "ddev.site")
+        echo "ddev:${PROJECT_NAME}:${PROJECT_TLD}"
+    elif [ -f "/.dockerenv" ]; then
+        echo "docker"
+    else
+        echo "local"
+    fi
+}
+
+# URL rewriting logic
+rewrite_url() {
+    local url="$1"
+    local env="$2"
+    
+    case "$env" in
+        ddev:*)
+            IFS=':' read -r _ name tld <<< "$env"
+            url="${url//localhost/${name}.${tld}}"
+            url="${url//127.0.0.1/${name}.${tld}}"
+            ;;
+        docker)
+            url="${url//localhost/host.docker.internal}"
+            url="${url//127.0.0.1/host.docker.internal}"
+            ;;
+    esac
+    echo "$url"
+}
+
+# Check for Vite dev server
+check_vite() {
+    for port in 5173 3000 4173; do
+        if nc -z localhost $port 2>/dev/null || nc -z host.docker.internal $port 2>/dev/null; then
+            echo "$port"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Main execution
+ENV=$(detect_environment)
+VITE_PORT=$(check_vite || true)
+
+# Process arguments
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == http://* ]] || [[ "$arg" == https://* ]]; then
+        ARGS+=("$(rewrite_url "$arg" "$ENV")")
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+# Use Node wrapper for Vite scenarios
+if [[ "$1" == "screenshot" ]] && [ -n "$VITE_PORT" ] && [ -f "/usr/local/share/claude/playwright-vite.js" ]; then
+    exec node /usr/local/share/claude/playwright-vite.js "${ARGS[@]:1}"
+fi
+
+# Find real playwright
+PLAYWRIGHT_BIN="/usr/local/lib/node_modules/.bin/playwright.original"
+[ ! -f "$PLAYWRIGHT_BIN" ] && PLAYWRIGHT_BIN="/usr/local/lib/node_modules/.bin/playwright"
+
+exec "$PLAYWRIGHT_BIN" "${ARGS[@]}"

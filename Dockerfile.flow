@@ -59,14 +59,15 @@ RUN npm install -g @modelcontextprotocol/server-filesystem
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
+# Backup original playwright and install wrapper
+RUN if [ -f /usr/local/lib/node_modules/.bin/playwright ]; then \
+        mv /usr/local/lib/node_modules/.bin/playwright /usr/local/lib/node_modules/.bin/playwright.original; \
+    fi && \
+    ln -sf /usr/local/bin/playwright /usr/local/lib/node_modules/.bin/playwright
+
 # Copy entrypoint script
 COPY docker/entrypoint.flow.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Copy helper scripts
-COPY bin/claude-flow-info /bin/claude-flow-info
-COPY bin/claude-flow-help /bin/claude-flow-help
-RUN chmod +x /bin/claude-flow-info /bin/claude-flow-help
 
 # Copy Claude settings configuration
 COPY config/flow.settings.local.json /home/claude/.claude/settings.local.json
@@ -117,6 +118,13 @@ PORT=$1\n\
 echo "Testing host.docker.internal:$PORT..."\n\
 timeout 5 bash -c "</dev/tcp/host.docker.internal/$PORT" && echo "Port $PORT: OPEN" || echo "Port $PORT: CLOSED"' > /usr/local/bin/test-port && \
     chmod +x /usr/local/bin/test-port
+
+# Load tokens if available
+if [ -f "$HOME/.claude-auth/tokens.env" ]; then
+    set -a
+    source "$HOME/.claude-auth/tokens.env"
+    set +a
+fi
 
 # Set Playwright browser path for claude user
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright

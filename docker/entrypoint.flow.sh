@@ -81,17 +81,6 @@ if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/NE
     cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/NETWORKING.md
 fi
 
-# Copy Flow-specific info scripts to accessible location
-if [ -f "/bin/claude-flow-info" ]; then
-    cp /bin/claude-flow-info /usr/local/bin/claude-info
-    chmod +x /usr/local/bin/claude-info
-fi
-
-if [ -f "/bin/claude-flow-help" ]; then
-    cp /bin/claude-flow-help /usr/local/bin/claude-help
-    chmod +x /usr/local/bin/claude-help
-fi
-
 # Set up bash profile for claude user
 cat > /home/claude/.bashrc << 'EOF'
 # Claude Flow Environment Bash Configuration

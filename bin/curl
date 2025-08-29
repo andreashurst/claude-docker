@@ -1,0 +1,12 @@
+#!/bin/bash
+# Docker-aware curl wrapper
+
+URL="$1"
+shift
+
+if [ -f "/.dockerenv" ] && [[ "$URL" == *"localhost"* ]]; then
+    URL="${URL//localhost/host.docker.internal}"
+    URL="${URL//127.0.0.1/host.docker.internal}"
+fi
+
+exec curl "$URL" "$@"
