@@ -1,0 +1,39 @@
+#!/bin/bash
+# Wrapper script to start Vite HMR proxy
+# Part of claude-docker: https://github.com/andreashurst/claude-docker
+
+PORT="${1:-3000}"
+
+echo "═══════════════════════════════════════════════════════════"
+echo "           VITE HMR PROXY FOR DOCKER"
+echo "═══════════════════════════════════════════════════════════"
+echo ""
+echo "Starting proxy on port $PORT..."
+echo "This enables full HMR support without modifying vite.config.ts"
+echo ""
+
+# Check if Node.js is available
+if [ -x "/usr/local/bin/node" ]; then
+    NODE_BIN="/usr/local/bin/node"
+elif command -v node >/dev/null 2>&1; then
+    NODE_BIN=$(command -v node)
+else
+    echo "Error: Node.js not found" >&2
+    echo "Please ensure Node.js is installed and in PATH" >&2
+    exit 1
+fi
+
+# Check if proxy script exists
+PROXY_SCRIPT="/usr/local/share/claude/vite-hmr-proxy.cjs"
+if [ ! -f "$PROXY_SCRIPT" ]; then
+    # Fallback to old location for compatibility
+    PROXY_SCRIPT="/usr/local/bin/vite-hmr-proxy.cjs"
+    if [ ! -f "$PROXY_SCRIPT" ]; then
+        echo "Error: Proxy script not found" >&2
+        echo "Expected at: /usr/local/share/claude/vite-hmr-proxy.cjs" >&2
+        exit 1
+    fi
+fi
+
+# Start the proxy
+exec "$NODE_BIN" "$PROXY_SCRIPT" "$PORT"

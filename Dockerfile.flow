@@ -59,11 +59,8 @@ RUN npm install -g @modelcontextprotocol/server-filesystem
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
-# Backup original playwright and install wrapper
-RUN if [ -f /usr/local/lib/node_modules/.bin/playwright ]; then \
-        mv /usr/local/lib/node_modules/.bin/playwright /usr/local/lib/node_modules/.bin/playwright.original; \
-    fi && \
-    ln -sf /usr/local/bin/playwright /usr/local/lib/node_modules/.bin/playwright
+# Create symlink for playwright CLI access
+RUN ln -sf /usr/local/lib/node_modules/playwright/cli.js /usr/local/bin/playwright-cli
 
 # Copy entrypoint script
 COPY docker/entrypoint.flow.sh /usr/local/bin/docker-entrypoint.sh
@@ -90,13 +87,19 @@ RUN mkdir -p /home/claude/.config/claude && \
     chmod 644 /home/claude/.claude/settings.local.json \
     echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Copy all scripts and tools
-COPY bin/* /usr/local/bin/
+# Copy wrapper scripts and tools
+COPY bin/curl /usr/local/bin/curl-docker
+COPY bin/playwright /usr/local/bin/playwright-docker
+COPY bin/vite-proxy /usr/local/bin/vite-proxy
+COPY bin/detect-environment /usr/local/bin/detect-environment
 COPY scripts/* /usr/local/share/claude/
 
-# Make everything executable
-RUN chmod +x /usr/local/bin/* && \
-   chmod +x /usr/local/share/claude/*
+# Make scripts executable
+RUN chmod +x /usr/local/bin/curl-docker && \
+    chmod +x /usr/local/bin/playwright-docker && \
+    chmod +x /usr/local/bin/vite-proxy && \
+    chmod +x /usr/local/bin/detect-environment && \
+    chmod +x /usr/local/share/claude/*
 
 # Copy Playwright browsers to user directory
 RUN mkdir -p /home/claude/.cache/ms-playwright && \

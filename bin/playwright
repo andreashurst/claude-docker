@@ -1,12 +1,29 @@
 #!/bin/bash
-# Optimized curl wrapper for Docker/DDEV environments
-# Automatically rewrites URLs and provides fallback mechanisms
+# Playwright wrapper with Docker/DDEV URL rewriting
+# Automatically handles Docker networking without config changes
 # Part of claude-docker: https://github.com/andreashurst/claude-docker
 
-# Original curl binary location
-CURL_BIN="/usr/bin/curl"
+# Find Node.js - check multiple possible locations
+if [ -x "/usr/local/bin/node" ]; then
+    NODE_BIN="/usr/local/bin/node"
+elif [ -x "/usr/bin/node" ]; then
+    NODE_BIN="/usr/bin/node"
+elif command -v node >/dev/null 2>&1; then
+    NODE_BIN=$(command -v node)
+else
+    echo "Error: Node.js not found" >&2
+    exit 1
+fi
 
-# Detect environment using multiple methods
+# Playwright CLI location
+PLAYWRIGHT_CLI="/usr/local/lib/node_modules/playwright/cli.js"
+
+if [ ! -f "$PLAYWRIGHT_CLI" ]; then
+    echo "Error: Playwright CLI not found at $PLAYWRIGHT_CLI" >&2
+    exit 1
+fi
+
+# Detect environment
 detect_environment() {
     if [ -f /.ddev/config.yaml ]; then
         echo "ddev"
@@ -19,13 +36,12 @@ detect_environment() {
     fi
 }
 
-# Get the appropriate host replacement based on environment
+# Get host replacement based on environment
 get_host_replacement() {
     local env=$1
     
     case "$env" in
         ddev)
-            # Extract DDEV project domain
             if [ -f /var/www/html/.ddev/config.yaml ]; then
                 local sitename=$(grep '^name:' /var/www/html/.ddev/config.yaml | sed 's/name: *//' | tr -d '"')
                 local tld=$(grep '^project_tld:' /var/www/html/.ddev/config.yaml | sed 's/project_tld: *//' | tr -d '"')
@@ -47,7 +63,7 @@ get_host_replacement() {
     esac
 }
 
-# Rewrite URL with fallback logic
+# Rewrite URL
 rewrite_url() {
     local url="$1"
     local env="$2"
@@ -59,7 +75,7 @@ rewrite_url() {
         return
     fi
     
-    # Replace localhost variants with appropriate host
+    # Replace localhost variants
     local new_url="$url"
     new_url="${new_url//localhost:/$host_replacement:}"
     new_url="${new_url//127.0.0.1:/$host_replacement:}"
@@ -78,16 +94,6 @@ rewrite_url() {
     echo "$new_url"
 }
 
-# Test connectivity with timeout
-test_connectivity() {
-    local host="$1"
-    local port="${2:-80}"
-    
-    # Quick connectivity test (1 second timeout)
-    timeout 1 bash -c "cat < /dev/null > /dev/tcp/$host/$port" 2>/dev/null
-    return $?
-}
-
 # Main execution
 main() {
     local env=$(detect_environment)
@@ -95,39 +101,42 @@ main() {
     
     # Process arguments
     local args=()
-    local url_found=false
+    local next_is_url=false
     
     for arg in "$@"; do
         local modified_arg="$arg"
         
-        # Check if this looks like a URL
-        if [[ "$arg" =~ ^https?:// ]] || [[ "$arg" =~ ^(localhost|127\.0\.0\.1|0\.0\.0\.0) ]]; then
+        # Check if previous arg indicated next would be a URL
+        if [ "$next_is_url" = "true" ]; then
             modified_arg=$(rewrite_url "$arg" "$env" "$host_replacement")
-            url_found=true
-            
-            # Extract host and port for connectivity test
-            if [[ "$modified_arg" =~ ^https?://([^:/]+)(:([0-9]+))? ]]; then
-                local test_host="${BASH_REMATCH[1]}"
-                local test_port="${BASH_REMATCH[3]:-80}"
-                
-                # Quick connectivity test with fallback
-                if ! test_connectivity "$test_host" "$test_port"; then
-                    # Try fallback to localhost if in Docker and host.docker.internal fails
-                    if [ "$env" = "docker" ] && [ "$test_host" = "host.docker.internal" ]; then
-                        if test_connectivity "localhost" "$test_port"; then
-                            modified_arg="${modified_arg//host.docker.internal/localhost}"
-                            >&2 echo "Warning: host.docker.internal not accessible, falling back to localhost"
-                        fi
-                    fi
-                fi
-            fi
+            next_is_url=false
+        # Check for URL-related flags
+        elif [[ "$arg" == "--base-url" ]] || [[ "$arg" == "-u" ]] || [[ "$arg" == "--url" ]]; then
+            next_is_url=true
+        # Check for inline URL format
+        elif [[ "$arg" =~ ^(--base-url|--url|-u)=(.+)$ ]]; then
+            local flag="${BASH_REMATCH[1]}"
+            local url="${BASH_REMATCH[2]}"
+            local new_url=$(rewrite_url "$url" "$env" "$host_replacement")
+            modified_arg="${flag}=${new_url}"
+        # Check if this looks like a URL
+        elif [[ "$arg" =~ ^https?:// ]]; then
+            modified_arg=$(rewrite_url "$arg" "$env" "$host_replacement")
         fi
         
         args+=("$modified_arg")
     done
     
-    # Execute curl with modified arguments
-    exec "$CURL_BIN" "${args[@]}"
+    # Special handling for common playwright commands
+    local command="${1:-}"
+    
+    # Ensure proper browser path for Docker
+    if [ "$command" = "test" ] && [ "$env" = "docker" ]; then
+        export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/home/claude/.cache/ms-playwright}"
+    fi
+    
+    # Execute playwright with Node.js
+    exec "$NODE_BIN" "$PLAYWRIGHT_CLI" "${args[@]}"
 }
 
 # Run main function
