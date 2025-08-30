@@ -223,7 +223,7 @@ FILES:
 ═══════════════════════════════════════════════════════════════════
 EOF
 
-chown claude:claude /home/claude/DOCKER_TOOLS_HELP.txt
+chown claude:claude /home/claude/README.md
 
 echo ""
 echo "✅ Claude Flow container initialized successfully!"
@@ -233,4 +233,4 @@ echo "📝 Type 'cat ~/README.md' for tool usage"
 echo ""
 
 # Switch to claude user and start interactive shell
-exec su - claude
+#exec su - claude
