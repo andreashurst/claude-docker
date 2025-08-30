@@ -1,0 +1,71 @@
+@ -1,70 +0,0 @@
+#!/bin/bash
+# Standalone claude-dev script using Docker Hub image
+
+# Check if Docker is running
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker is not running. Please start Docker and try again."
+    exit 1
+fi
+
+# Get current directory and create project-specific naming
+CURRENT_DIR=$(pwd)
+PROJECT_BASE=$(basename "$CURRENT_DIR")
+COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
+
+# Check for CLAUDECODE_API_KEY environment variable
+if [ -n "$CLAUDECODE_API_KEY" ]; then
+    echo "✓ CLAUDECODE_API_KEY detected - Claude will use API key authentication"
+else
+    echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
+    echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
+fi
+
+# Create project-specific docker-compose file
+COMPOSE_FILE="/tmp/claude-dev-${PROJECT_BASE}-compose.yml"
+cat > "$COMPOSE_FILE" << EOF
+services:
+  claude-dev:
+    image: andreashurst/claude-docker:latest-dev
+    working_dir: /var/www/html
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ${CURRENT_DIR}:/var/www/html:cached
+
+    environment:
+      - NODE_ENV=development
+      - NPM_CONFIG_CACHE=/tmp/npm-cache
+      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
+      - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
+      - PROJECT_PATH=${CURRENT_DIR}
+      - ANTHROPIC_API_KEY=${CLAUDECODE_API_KEY:-}
+
+    stdin_open: true
+    tty: true
+
+    security_opt:
+      - no-new-privileges:true
+
+    restart: "no"
+
+EOF
+
+# Check if container is already running, if not start it
+if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-dev; then
+    echo "Starting ${COMPOSE_PROJECT_NAME}..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+    # Wait a moment for container to be ready
+    sleep 2
+    # Connect to the running container
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash /usr/local/bin/entrypoint.sh
+else
+    echo "Container ${COMPOSE_PROJECT_NAME} already running..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
+fi
+
+
+# Clean up compose file (container keeps running)
+rm -f "$COMPOSE_FILE"

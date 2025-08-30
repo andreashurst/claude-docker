@@ -9,7 +9,7 @@ echo "Step 1: Cleaning local Docker..."
 docker rmi andreashurst/claude-docker:latest-flow 2>/dev/null || true
 docker rmi andreashurst/claude-docker:latest-dev 2>/dev/null || true
 docker system prune -a -f
-docker builder prune -a -f
+#docker builder prune -a -f
 docker volume prune -f
 
 # 2. Build with absolutely no cache

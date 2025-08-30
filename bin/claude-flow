@@ -1,0 +1,160 @@
+@ -1,159 +0,0 @@
+#!/bin/bash
+# Standalone claude-flow script using Docker Hub image
+
+# Check if Docker is running
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker is not running. Please start Docker and try again."
+    exit 1
+fi
+
+# Get current directory and create project-specific naming
+CURRENT_DIR=$(pwd)
+PROJECT_BASE=$(basename "$CURRENT_DIR")
+COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
+
+# Setup cleanup trap
+cleanup() {
+    if [ -n "$COMPOSE_FILE" ] && [ -f "$COMPOSE_FILE" ]; then
+        rm -f "$COMPOSE_FILE"
+    fi
+    if [ -n "$MCP_CONFIG_DIR" ] && [ -d "$MCP_CONFIG_DIR" ]; then
+        rm -rf "$MCP_CONFIG_DIR"
+    fi
+}
+trap cleanup EXIT
+
+# Create project-specific MCP configuration
+MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
+# Remove if exists (in case it was created as a file by mistake)
+rm -rf "$MCP_CONFIG_DIR" 2>/dev/null
+mkdir -p "$MCP_CONFIG_DIR"
+
+# Check for CLAUDECODE_API_KEY environment variable
+if [ -f ~/.claude-code/CLAUDECODE_API_KEY ]; then
+    CLAUDECODE_API_KEY=$(cat ~/.claude-code/CLAUDECODE_API_KEY)
+    echo "✓ CLAUDECODE_API_KEY detected from file - Claude will use API key authentication"
+elif [ -n "$CLAUDECODE_API_KEY" ]; then
+    echo "✓ CLAUDECODE_API_KEY detected from environment - Claude will use API key authentication"
+else
+    echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
+    echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
+fi
+
+cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
+      }
+    },
+    "git": {
+      "command": "python3",
+      "args": ["-m", "mcp_server_git", "--repository", "/var/www/html"]
+    }
+  },
+  "environmentInfo": {
+    "internalWebServer": {
+      "status": "Will be started on container launch",
+      "url": "http://localhost:80",
+      "hostAccess": "http://localhost:8080",
+      "description": "Internal Python HTTP server for Playwright testing",
+      "note": "Server directory will be auto-detected or prompted during startup"
+    },
+    "playwrightUsage": {
+      "description": "Use Playwright with the internal web server",
+      "testCommand": "await page.goto('http://localhost:80')",
+      "codegen": "playwright codegen http://localhost:80"
+    },
+    "container": {
+      "workingDirectory": "/var/www/html",
+      "user": "claude (UID 1010)",
+      "runtimes": ["node", "deno", "python3"],
+      "tools": [
+        "node", "npm", "npx", "pnpm", "deno",
+        "python3", "pip3",
+        "git", "curl", "wget", "ssh",
+        "playwright", "sqlite3",
+        "jq", "ripgrep", "tree", "htop", "nc",
+        "nano", "vim", "make",
+        "claude", "claude-flow",
+        "test-host-connectivity", "test-port"
+      ],
+      "volumes": {
+        "project": "Current directory mounted to /var/www/html",
+        "mcp_config": "Temporary MCP config (regenerated each run)"
+      },
+      "note": "Cache and config directories are temporary and reset on container restart"
+    }
+  }
+}
+EOF
+
+# Create project-specific docker-compose file
+COMPOSE_FILE="/tmp/claude-flow-${PROJECT_BASE}-compose.yml"
+cat > "$COMPOSE_FILE" << EOF
+services:
+  claude-flow:
+    image: andreashurst/claude-docker:latest-flow
+    working_dir: /var/www/html
+
+    ports:
+      - "8080:80"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ${CURRENT_DIR}:/var/www/html:cached
+      - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
+
+    environment:
+      - NODE_ENV=development
+      - NPM_CONFIG_CACHE=/tmp/npm-cache
+      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
+      - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
+      - PATH="/home/claude/.deno/bin:\$PATH"
+      - DENO_INSTALL="/home/claude/.deno"
+      - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+      - PROJECT_PATH=${CURRENT_DIR}
+      - ANTHROPIC_API_KEY=${CLAUDECODE_API_KEY:-}
+
+    stdin_open: true
+    tty: true
+
+    security_opt:
+      - no-new-privileges:true
+
+    restart: "no"
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+
+EOF
+
+# Check if container is already running, if not start it
+if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-flow; then
+    echo "Starting ${COMPOSE_PROJECT_NAME}..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+    # Wait a moment for container to be ready
+    sleep 2
+    # Connect to the running container
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
+else
+    echo "Container ${COMPOSE_PROJECT_NAME} already running..."
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
+fi
+
+# Note: Temporary files are cleaned up when script exits
+# Container continues running in the background

@@ -25,11 +25,15 @@ RUN apt-get update && apt-get upgrade -y && \
     make \
     openssh-client \
     iputils-ping \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -g 1010 claude && \
     useradd -d /home/claude -s /bin/bash -u 1010 -g claude claude
+
+# Add claude to sudoers
+RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Install Deno as claude user
 USER claude
@@ -59,14 +63,22 @@ RUN npm install -g @modelcontextprotocol/server-filesystem
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install mcp-server-git || echo "Warning: mcp-server-git installation failed, continuing without Git MCP support"
 
+# Create directories
+RUN mkdir -p /usr/local/share/claude/examples && \
+    mkdir -p /usr/local/share/docs && \
+    mkdir -p /usr/local/lib/node_modules/playwright && \
+    mkdir -p /home/claude/.config/claude && \
+    mkdir -p /home/claude/.claude && \
+    mkdir -p /home/claude/.cache/ms-playwright
+
 # Create symlink for playwright CLI access
 RUN ln -sf /usr/local/lib/node_modules/playwright/cli.js /usr/local/bin/playwright-cli
 
 # Copy entrypoint script
-COPY docker/entrypoint.flow.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/entrypoint.flow.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Copy Claude settings configuration
+# Copy Claude settings configuration to the correct location
 COPY config/flow.settings.local.json /home/claude/.claude/settings.local.json
 
 # Copy Playwright scripts and examples
@@ -75,17 +87,11 @@ COPY config/flow.playwright.config.example.js /usr/local/share/claude/examples/p
 COPY config/flow.example-vite-test.spec.js /usr/local/share/claude/examples/example-test.spec.js
 COPY docs/NETWORKING.md /usr/local/share/docs/NETWORKING.md
 COPY docs/PLAYWRIGHT.md /usr/local/share/docs/PLAYWRIGHT.md
-RUN chmod +x /usr/local/bin/screenshot && \
-    mkdir -p /usr/local/share/claude/examples
 
-# Create config directory for MCP servers and Claude settings
-RUN mkdir -p /home/claude/.config/claude && \
-    mkdir -p /home/claude/.claude && \
-    chown -R claude:claude /home/claude/.config && \
-    chown -R claude:claude /home/claude/.claude && \
-    chown claude:claude /home/claude/.claude/settings.local.json && \
-    chmod 644 /home/claude/.claude/settings.local.json \
-    echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Verify copied files
+RUN ls -lah /usr/local/share/docs
+RUN ls -lah /usr/local/share/claude
+RUN ls -lah /usr/local/share/claude/examples
 
 # Copy wrapper scripts and tools
 COPY bin/curl /usr/local/bin/curl-docker
@@ -101,18 +107,25 @@ RUN chmod +x /usr/local/bin/curl-docker && \
     chmod +x /usr/local/bin/detect-environment && \
     chmod +x /usr/local/share/claude/*
 
+# Set proper ownership and permissions for claude user directories
+RUN chown -R claude:claude /home/claude/.config && \
+    chown -R claude:claude /home/claude/.claude && \
+    chmod 644 /home/claude/.claude/settings.local.json
+
 # Copy Playwright browsers to user directory
-RUN mkdir -p /home/claude/.cache/ms-playwright && \
-    cp -r /root/.cache/ms-playwright/* /home/claude/.cache/ms-playwright/ || true && \
+RUN cp -r /root/.cache/ms-playwright/* /home/claude/.cache/ms-playwright/ 2>/dev/null || true && \
     chown -R claude:claude /home/claude/.cache/ms-playwright
 
-# NPM will use temp directories automatically
+# Set environment variables
 ENV NPM_CONFIG_CACHE=/tmp/npm-cache \
     PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
     NODE_ENV=development \
     DOCKER_ENV=true \
-    AUTH_DIR=/home/claude/.claude-auth
-
+    AUTH_DIR=/home/claude/.claude-auth \
+    PATH="/home/claude/.deno/bin:$PATH" \
+    DENO_INSTALL="/home/claude/.deno" \
+    DOCKER_CONTAINER=true \
+    VITE_HOST=host.docker.internal
 
 # Create network testing scripts
 RUN echo '#!/bin/bash\n\
@@ -136,30 +149,11 @@ echo "Testing host.docker.internal:$PORT..."\n\
 timeout 5 bash -c "</dev/tcp/host.docker.internal/$PORT" && echo "Port $PORT: OPEN" || echo "Port $PORT: CLOSED"' > /usr/local/bin/test-port && \
     chmod +x /usr/local/bin/test-port
 
-
-# Load tokens if available
-#if [ -f "$HOME/.claude-auth/tokens.env" ]; then
-#    set -a
-#    source "$HOME/.claude-auth/tokens.env"
-#    set +a
-#fi
-
-# Set Playwright browser path for claude user
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
-
-# Set environment variables for Docker/Vite integration
-ENV DOCKER_CONTAINER=true
-ENV VITE_HOST=host.docker.internal
-
 # Set working directory
 WORKDIR /var/www/html
 
-# Switch back to claude user
-USER claude
-
-# Set environment
-ENV PATH="/home/claude/.deno/bin:$PATH"
-ENV DENO_INSTALL="/home/claude/.deno"
+# IMPORTANT: Keep as root user so entrypoint can do root operations
+# The entrypoint script will switch to claude user at the end
 
 # Set entrypoint
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
