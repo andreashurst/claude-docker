@@ -64,7 +64,7 @@
       "mobile": "375,667"
     },
     "urls": {
-      "local": "http://host.docker.internal"
+      "local": "http://localhost"
     }
   },
   "validation": {

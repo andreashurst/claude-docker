@@ -3,43 +3,43 @@ const { defineConfig, devices } = require('@playwright/test');
 
 /**
  * Playwright configuration for Docker environment
- * 
+ *
  * Usage:
  * 1. Copy this file to your project:
  *    cp /usr/local/share/claude/examples/playwright.config.js ./playwright.config.js
- * 
+ *
  * 2. Adjust testDir and other paths as needed for your project structure
  */
 module.exports = defineConfig({
   testDir: './tests',
   outputDir: './test-results',
-  
+
   // Run tests in parallel
   fullyParallel: true,
-  
+
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
-  
+
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
-  
+
   // Reporter to use
   reporter: [
-    ['html', { outputFolder: './test-results/html' }],
-    ['json', { outputFile: './test-results/results.json' }]
+    ['html', { outputFolder: '/var/www/html/playwright/test-results/html' }],
+    ['json', { outputFile: '/var/www/html/playwright/test-results/results.json' }]
   ],
 
   // Shared settings for all projects
   use: {
     // Base URL for Docker environment
-    baseURL: process.env.BASE_URL || 'http://host.docker.internal',
-    
+    baseURL: process.env.BASE_URL || 'http://localhost',
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
-    
+
     // Screenshot on failure
     screenshot: 'only-on-failure',
-    
+
     // Video on failure
     video: 'retain-on-failure',
   },
@@ -68,11 +68,4 @@ module.exports = defineConfig({
       use: { ...devices['iPhone 12'] },
     },
   ],
-
-  // Run local dev server before starting tests (if needed)
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://host.docker.internal:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });
