@@ -3,52 +3,61 @@
 ## Quick Start
 
 ```bash
-# Take a screenshot (auto-detects environment)
-screenshot http://localhost screenshot.png
+# Take a screenshot
+playwright screenshot http://localhost screenshot.png
 
 # Generate a test
 playwright codegen http://localhost
 
 # Run tests
-playwright-test
+playwright test
 ```
 
-## Universal Screenshot Tool
+## Taking Screenshots
 
-The `screenshot` command automatically detects and adapts to your environment:
+Playwright can take screenshots directly:
 
-### Environment Detection
-- **DDEV**: Auto-detects domain and custom TLDs (reads from `.ddev/config.yaml`)
-- **Docker**: Rewrites to `host.docker.internal`
-- **Local**: Uses localhost directly
+```bash
+# Basic screenshot
+playwright screenshot http://localhost output.png
 
-### How It Works
+# Full page screenshot
+playwright screenshot --full-page http://localhost full.png
 
-```javascript
-// Automatic URL rewriting examples:
-"localhost:3000" → "myproject.ddev.site:3000"    // DDEV default
-"localhost:3000" → "myproject.ddev.local:3000"   // DDEV custom TLD
-"localhost:3000" → "custom.domain.test:3000"     // DDEV with additional_fqdns
-"localhost:3000" → "host.docker.internal:3000"   // Docker
-"localhost:3000" → "localhost:3000"              // Local
+# Mobile viewport
+playwright screenshot --viewport-size=375,667 http://localhost mobile.png
 ```
 
-### Features
-- ✅ No vite.config changes needed
-- ✅ Blocks HMR to prevent corruption
-- ✅ Works with any dev server (Vite, webpack, etc.)
-- ✅ Handles all common ports automatically
+### Docker Networking
+
+When running Playwright in Docker, use `host.docker.internal` to access services on your host:
+
+```bash
+# Access Vite dev server from Docker
+playwright screenshot http://host.docker.internal:5173 screenshot.png
+
+# Access DDEV site
+playwright screenshot https://myproject.ddev.site screenshot.png
+```
 
 ## Writing Tests
 
 ### Setup
 
 ```bash
-# Copy example configuration
-cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/playwright/playwright.config.js
+# Create test directory
+mkdir -p /var/www/html/playwright/tests
 
-# Copy example test
-cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwright/tests/example.spec.js
+# Create a simple test file
+cat > /var/www/html/playwright/tests/example.spec.js << 'EOF'
+const { test, expect } = require('@playwright/test');
+
+test('homepage loads', async ({ page }) => {
+  await page.goto('http://host.docker.internal:3000');
+  await expect(page).toHaveTitle(/.*/)
+  await page.screenshot({ path: 'homepage.png' });
+});
+EOF
 ```
 
 ### Test Structure
@@ -67,10 +76,10 @@ cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwrigh
 const { test, expect } = require('@playwright/test');
 
 test('homepage loads', async ({ page }) => {
-  await page.goto('http://localhost');
+  await page.goto('http://host.docker.internal:3000');
   await expect(page).toHaveTitle(/My Site/);
 
-  // Screenshot with automatic environment handling
+  // Take screenshot
   await page.screenshot({
     path: './screenshots/homepage.png',
     fullPage: true
@@ -82,9 +91,9 @@ test('homepage loads', async ({ page }) => {
 
 | Command | Description |
 |---------|-------------|
-| `screenshot <url> <output>` | Universal screenshot tool |
-| `playwright-test` | Run all tests |
-| `playwright-ui` | Run with UI mode |
+| `playwright screenshot <url> <output>` | Take a screenshot |
+| `playwright test` | Run all tests |
+| `playwright test --ui` | Run with UI mode |
 | `playwright codegen <url>` | Generate test code |
 | `playwright --help` | Show all options |
 
@@ -95,35 +104,34 @@ test('homepage loads', async ({ page }) => {
 # Host: Start Vite
 npm run dev
 
-# Container: Screenshot with CSS
-screenshot http://localhost screenshot.png
+# Container: Screenshot from Docker
+playwright screenshot http://host.docker.internal:5173 screenshot.png
 ```
 
 ### DDEV Projects
 ```bash
-# DDEV automatically detected (including custom TLDs)
-screenshot http://localhost screenshot.png
-# → Rewrites to your DDEV domain:
-#   - myproject.ddev.site (default)
-#   - myproject.ddev.local (custom project_tld)
-#   - custom.domain.test (additional_fqdns)
+# Use DDEV domain directly
+playwright screenshot https://myproject.ddev.site screenshot.png
+
+# Or with custom TLD
+playwright screenshot https://myproject.ddev.local screenshot.png
 ```
 
-### Custom Ports
-The tool automatically checks common ports:
-- 3000 (React, Next.js)
-- 5173 (Vite)
-- 8080 (webpack)
-- 4200 (Angular)
+### Common Development Ports
+- **3000** - React, Next.js, Express
+- **5173** - Vite default
+- **8080** - webpack-dev-server
+- **4200** - Angular
+- **4173** - Vite preview
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | No CSS in screenshots | Check dev server is running |
-| Large files (>600KB) | HMR corruption - tool blocks this automatically |
-| Connection refused | Verify port with `test-port 3000` |
-| DDEV not detected | Check `.ddev/config.yaml` exists |
+| Connection refused | Use `host.docker.internal` from Docker |
+| DDEV site not accessible | Check DDEV is running with `ddev status` |
+| Timeout errors | Increase timeout with `--timeout=60000` |
 
 ## Advanced Usage
 
@@ -138,7 +146,7 @@ await page.setViewportSize({ width: 1920, height: 1080 }); // Desktop
 ```javascript
 test('page load time', async ({ page }) => {
   const startTime = Date.now();
-  await page.goto('http://localhost');
+  await page.goto('http://host.docker.internal:3000');
   const loadTime = Date.now() - startTime;
   expect(loadTime).toBeLessThan(3000);
 });
@@ -147,7 +155,7 @@ test('page load time', async ({ page }) => {
 ### Visual Regression
 ```javascript
 test('visual comparison', async ({ page }) => {
-  await page.goto('http://localhost');
+  await page.goto('http://host.docker.internal:3000');
   await expect(page).toHaveScreenshot('homepage.png');
 });
 ```

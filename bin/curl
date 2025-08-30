@@ -1,12 +1,46 @@
 #!/bin/bash
-# Docker-aware curl wrapper
+# Simple curl wrapper with DDEV/Docker detection
+# Automatically rewrites URLs for different environments
 
-URL="$1"
-shift
-
-if [ -f "/.dockerenv" ] && [[ "$URL" == *"localhost"* ]]; then
-    URL="${URL//localhost/host.docker.internal}"
-    URL="${URL//127.0.0.1/host.docker.internal}"
+# Detect environment
+if [ -f /.ddev/config.yaml ]; then
+    # DDEV environment
+    if [ -f /var/www/html/.ddev/config.yaml ]; then
+        SITENAME=$(grep '^name:' /var/www/html/.ddev/config.yaml | sed 's/name: *//' | tr -d '"')
+        TLD=$(grep '^project_tld:' /var/www/html/.ddev/config.yaml | sed 's/project_tld: *//' | tr -d '"')
+        [ -z "$TLD" ] && TLD="ddev.site"
+        DDEV_DOMAIN="${SITENAME}.${TLD}"
+    fi
+elif [ -f /.dockerenv ]; then
+    # Docker environment
+    DOCKER_ENV=1
 fi
 
-exec curl "$URL" "$@"
+# Process arguments and rewrite URLs
+args=()
+for arg in "$@"; do
+    modified_arg="$arg"
+    
+    # Rewrite URLs based on environment
+    if [ -n "$DDEV_DOMAIN" ]; then
+        # DDEV: Replace localhost with DDEV domain
+        modified_arg="${arg//localhost/$DDEV_DOMAIN}"
+        modified_arg="${modified_arg//127.0.0.1/$DDEV_DOMAIN}"
+    elif [ -n "$DOCKER_ENV" ]; then
+        # Docker: Replace localhost with host.docker.internal
+        modified_arg="${arg//localhost/host.docker.internal}"
+        modified_arg="${modified_arg//127.0.0.1/host.docker.internal}"
+    fi
+    
+    # Check for Vite ports and rewrite if needed
+    for port in 5173 3000 4173; do
+        if [[ "$modified_arg" == *":$port"* ]] && [ -n "$DOCKER_ENV" ]; then
+            modified_arg="${modified_arg//localhost:$port/host.docker.internal:$port}"
+        fi
+    done
+    
+    args+=("$modified_arg")
+done
+
+# Execute curl with modified arguments
+exec /usr/bin/curl "${args[@]}"

@@ -1,5 +1,0 @@
-#!/bin/bash
-# Universal Screenshot Tool
-# Alias for playwright screenshot with environment detection
-
-exec /usr/local/bin/playwright screenshot "$@"

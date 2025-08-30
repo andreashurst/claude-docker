@@ -54,7 +54,7 @@ echo "export FRONTEND_URL='$FRONTEND_URL'" > /home/claude/.claude_env
 # Copy Claude settings if available
 if [ ! -f "/var/www/html/.claude/settings.local.json" ] && [ -f "/home/claude/.claude/settings.local.json" ]; then
     mkdir -p /var/www/html/.claude
-    cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json /var/www/html
+    cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json
     chown -R claude:claude /var/www/html/.claude
 fi
 

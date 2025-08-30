@@ -1,161 +1,116 @@
-# Networking & Host Access
+# Docker Networking Guide
+
+## Overview
+This guide explains networking in the Docker environment and how to connect to services running on your host machine.
 
 ## Quick Reference
 
-Access services on your host machine from inside the container:
+### From Docker Container → Host Services
+
+| Host Service | Use This URL |
+|-------------|--------------|
+| `localhost:3000` | `http://host.docker.internal:3000` |
+| `127.0.0.1:5173` | `http://host.docker.internal:5173` |
+| `localhost:8080` | `http://host.docker.internal:8080` |
+
+## Environment Detection
+
+Use the detection script to identify your environment:
+```bash
+/test/bin/detect-environment
+# Output: Docker, DDEV, or Local
+```
+
+## Using the curl Wrapper
+
+The curl wrapper automatically rewrites URLs for Docker environments:
 
 ```bash
-# Test connectivity
-test-port 3000
+# Instead of:
+curl http://localhost:3000
 
-# Access services
-curl http://host.docker.internal:3000
-psql -h host.docker.internal -p 5432
+# Just use:
+/test/bin/curl http://localhost:3000
+# Automatically becomes: http://host.docker.internal:3000
 ```
 
-## How It Works
+## Common Development Ports
 
-Docker provides `host.docker.internal` as a special DNS name that resolves to your host machine.
+### Vite/Frontend
+- **5173** - Vite default port
+- **3000** - Alternative dev server
+- **4173** - Vite preview port
 
-```
-Container → host.docker.internal → Host Machine
-```
-
-## Common Services
-
-### Frontend Dev Servers
-
-| Service | Default Port | Access URL |
-|---------|-------------|------------|
-| React/Next.js | 3000 | `http://host.docker.internal:3000` |
-| Vite | 5173 | `http://host.docker.internal:5173` |
-| Angular | 4200 | `http://host.docker.internal:4200` |
-| Vue/webpack | 8080 | `http://host.docker.internal:8080` |
-
-### Backend APIs
-
-| Service | Default Port | Access URL |
-|---------|-------------|------------|
-| Express/Node | 3000/8000 | `http://host.docker.internal:8000` |
-| Django/FastAPI | 8000 | `http://host.docker.internal:8000` |
-| Flask | 5000 | `http://host.docker.internal:5000` |
-| Rails | 3000 | `http://host.docker.internal:3000` |
-
-### Databases
-
-```bash
-# PostgreSQL
-psql -h host.docker.internal -p 5432 -U username dbname
-
-# MySQL
-mysql -h host.docker.internal -P 3306 -u username -p
-
-# MongoDB
-mongosh mongodb://host.docker.internal:27017/dbname
-
-# Redis
-redis-cli -h host.docker.internal -p 6379
-```
+### Backend Services
+- **8080** - Common API server port
+- **3306** - MySQL
+- **5432** - PostgreSQL
+- **6379** - Redis
+- **27017** - MongoDB
 
 ## Testing Connectivity
 
-### Quick Tests
-
+### Quick Test
 ```bash
+# Test if host is reachable
+curl -I http://host.docker.internal
+
 # Test specific port
-test-port 3000
-
-# Test common ports
-test-host-connectivity
-
-# Manual test
-nc -zv host.docker.internal 3000
 curl -I http://host.docker.internal:3000
 ```
 
-### Debugging
-
+### Using the curl Wrapper
 ```bash
-# Check what's listening on host
-# Run on host machine:
-lsof -i :3000           # Mac/Linux
-netstat -an | grep 3000 # Windows
-
-# Inside container:
-ping host.docker.internal
-nslookup host.docker.internal
+# Automatically handles URL rewriting
+/test/bin/curl http://localhost:5173
 ```
-
-## Configuration
-
-### Docker Compose
-
-The containers are configured with:
-
-```yaml
-extra_hosts:
-  - "host.docker.internal:host-gateway"
-```
-
-This ensures compatibility across all platforms (Mac, Windows, Linux).
-
-### Service Binding
-
-⚠️ **Important**: Services on your host must bind to `0.0.0.0` or your network interface, not just `127.0.0.1`.
-
-```javascript
-// ❌ Won't work from Docker
-server.listen(3000, '127.0.0.1');
-
-// ✅ Accessible from Docker
-server.listen(3000, '0.0.0.0');
-// or
-server.listen(3000); // Usually defaults to 0.0.0.0
-```
-
-## DDEV Integration
-
-DDEV projects have their own networking with automatic domain detection:
-
-```bash
-# DDEV domains (auto-detected from config.yaml)
-https://myproject.ddev.site       # Default TLD
-https://myproject.ddev.local      # Custom project_tld
-https://custom.domain.test        # additional_fqdns
-
-# With Vite dev server
-https://myproject.ddev.site:5173  # Port automatically appended
-```
-
-The `screenshot` command automatically:
-- Detects DDEV environment
-- Reads `.ddev/config.yaml` for custom TLDs
-- Uses environment variables (DDEV_HOSTNAME, DDEV_PRIMARY_URL)
-- Handles `project_tld` and `additional_fqdns` settings
-
-## Security Notes
-
-- Services exposed on `0.0.0.0` are accessible from your local network
-- Use firewall rules if needed
-- Consider using authentication for sensitive services
-- In production, use proper service discovery instead
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Connection refused | Service not running | Start the service on host |
-| Connection refused | Bound to localhost only | Bind to `0.0.0.0` instead |
-| Timeout | Firewall blocking | Check firewall rules |
-| Can't resolve host.docker.internal | Old Docker version | Update Docker Desktop |
+### Connection Refused
+If you get "Connection refused", check:
+1. Is the service running on the host?
+2. Is it bound to `0.0.0.0` not just `127.0.0.1`?
+3. Is the port exposed through any firewall?
 
-## Platform-Specific Notes
+### Vite Dev Server
+For Vite, ensure your `vite.config.js` has:
+```javascript
+server: {
+  host: '0.0.0.0',  // Listen on all interfaces
+  port: 5173,
+  strictPort: true
+}
+```
 
-### macOS & Windows
-- `host.docker.internal` works out of the box
-- Provided by Docker Desktop
+### DDEV Projects
+If using DDEV, the curl wrapper will automatically detect and use your DDEV domain:
+- Detects from `.ddev/config.yaml`
+- Rewrites `localhost` → `yourproject.ddev.site`
 
-### Linux
-- Requires Docker 20.10+ 
-- Add `--add-host=host.docker.internal:host-gateway` to docker run
-- Our scripts handle this automatically
+## Direct Commands
+
+Remember, you can always use curl directly:
+```bash
+# Direct curl (no URL rewriting)
+curl http://host.docker.internal:3000
+
+# With wrapper (automatic rewriting)
+/test/bin/curl http://localhost:3000
+```
+
+## Environment Variables
+
+The container sets:
+- `DOCKER_CONTAINER=true`
+- `DOCKER_ENV=true`
+
+You can check these in your scripts:
+```bash
+if [ -n "$DOCKER_CONTAINER" ]; then
+  echo "Running in Docker"
+fi
+```
+
+---
+*Last updated: 2025-08-30*
