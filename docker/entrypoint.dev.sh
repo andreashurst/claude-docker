@@ -4,23 +4,22 @@
 # This script initializes the container environment
 # Runs as root initially, then switches to claude user for interactive work
 
-# Mark this as a Dev environment
-touch /.claude-dev-env
+ROOT="/var/www/html"
 
 # ═══════════════════════════════════════════════════════════
 # PROJECT DETECTION AND CONFIGURATION
 # ═══════════════════════════════════════════════════════════
 
 # Detect project type and set intelligent default
-if [ -d "/var/www/html/.ddev" ]; then
+if [ -d "$ROOT.ddev" ]; then
     # Extract project details from .ddev/config.yaml
-    if [ -f "/var/www/html/.ddev/config.yaml" ]; then
-        PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+    if [ -f "$ROOT/.ddev/config.yaml" ]; then
+        PROJECT_NAME=$(grep "^name:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
 
         # Try to get URLs in priority order
-        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
+        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
+        PROJECT_TLD=$(grep "^project_tld:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
 
         if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
             DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
@@ -60,11 +59,11 @@ chown claude:claude /home/claude/.claude_env
 # ═══════════════════════════════════════════════════════════
 
 # Copy Claude settings if available
-if [ ! -f "/var/www/html/.claude/settings.local.json" ]; then
+if [ ! -f "$ROOT/.claude/settings.local.json" ]; then
     if [ -f "/home/claude/.claude/settings.local.json" ]; then
-        mkdir -p /var/www/html/.claude
-        cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json
-        chown -R claude:claude /var/www/html/.claude
+        mkdir -p $ROOT/.claude
+        cp /home/claude/.claude/settings.local.json $ROOT/.claude/settings.local.json
+        chown -R claude:claude $ROOT/.claude
         echo "  ✓ Claude settings copied to project directory"
     else
         echo "  ⚠ No Claude settings found (this is normal for first run)"
@@ -74,21 +73,21 @@ else
 fi
 
 # Create documentation directory
-mkdir -p /var/www/html/docs
+mkdir -p $ROOT/docs
 
 # Copy documentation to mounted volume if they don't exist
 # Check multiple possible source locations
 NETWORKING_COPIED=false
 
 # Try different possible locations for the networking documentation
-if [ ! -f "/var/www/html/docs/NETWORKING.md" ]; then
+if [ ! -f "$ROOT/docs/NETWORKING.md" ]; then
     if [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
-        cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/NETWORKING.md
-        echo "  ✓ Networking documentation copied to /var/www/html/docs/NETWORKING.md"
+        cp /usr/local/share/docs/NETWORKING.md $ROOT/docs/NETWORKING.md
+        echo "  ✓ Networking documentation copied to $ROOT/docs/NETWORKING.md"
         NETWORKING_COPIED=true
     elif [ -f "/usr/local/share/docs/testing/NETWORKING.md" ]; then
-        cp /usr/local/share/docs/testing/NETWORKING.md /var/www/html/docs/NETWORKING.md
-        echo "  ✓ Networking documentation copied to /var/www/html/docs/NETWORKING.md"
+        cp /usr/local/share/docs/testing/NETWORKING.md $ROOT/docs/NETWORKING.md
+        echo "  ✓ Networking documentation copied to $ROOT/docs/NETWORKING.md"
         NETWORKING_COPIED=true
     fi
 
@@ -100,13 +99,13 @@ else
 fi
 
 # Copy other documentation if available
-if [ ! -f "/var/www/html/docs/CLAUDE.md" ] && [ -f "/usr/local/share/docs/CLAUDE.md" ]; then
-    cp /usr/local/share/docs/CLAUDE.md /var/www/html/docs/CLAUDE.md
+if [ ! -f "$ROOT/docs/CLAUDE.md" ] && [ -f "/usr/local/share/docs/CLAUDE.md" ]; then
+    cp /usr/local/share/docs/CLAUDE.md $ROOT/docs/CLAUDE.md
     echo "  ✓ Claude documentation copied"
 fi
 
 # Set proper ownership for all project files
-chown -R claude:claude /var/www/html/docs 2>/dev/null || true
+chown -R claude:claude $ROOT/docs 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════
 # USER ENVIRONMENT SETUP
@@ -206,44 +205,6 @@ EOF
 # Set proper ownership
 chown claude:claude /home/claude/.bashrc
 
-# Create help files for both users
-cat > /home/claude/README.md << 'EOF'
-═══════════════════════════════════════════════════════════════════
-                    CLAUDE DEV CONTAINER HELP
-═══════════════════════════════════════════════════════════════════
-
-ENVIRONMENT:
-  This is a lightweight development container with Claude Code integration.
-
-QUICK COMMANDS:
-  test-connectivity        # Test connection to host
-  test-port 3000          # Test specific port
-  ll                      # List files with details
-  logs                    # View system logs
-  ports                   # Show open ports
-
-DIRECTORIES:
-  /var/www/html/          # Your project files
-  /var/www/html/docs/     # Documentation
-  /var/www/html/.claude/  # Claude settings
-
-ENVIRONMENT VARIABLES:
-  $FRONTEND_URL           # Your configured frontend URL
-
-NETWORK TESTING:
-  test-host-connectivity  # Test all common ports
-  test-port 3000         # Test specific port
-
-MORE INFO:
-  cat ~/README.md        # This help file
-  env                    # Show all environment variables
-
-═══════════════════════════════════════════════════════════════════
-EOF
-
-cp /home/claude/README.md /root/README.md
-chown claude:claude /home/claude/README.md
-
 echo ""
 echo "✅ Claude Dev container initialized successfully!"
 echo "📝 Type 'cat ~/README.md' for help"
@@ -256,13 +217,5 @@ echo "2. root user (for system administration)"
 echo ""
 read -p "Enter choice (1-2, default: 1): " USER_CHOICE
 
-case ${USER_CHOICE:-1} in
-    2)
-        echo "Starting as root user..."
-        exec /bin/bash
-        ;;
-    *)
-        echo "Starting as claude user..."
-        exec su - claude
-        ;;
-esac
+# Switch to claude user and start interactive shell
+exec su - claude
