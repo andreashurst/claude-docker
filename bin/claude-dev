@@ -1,17 +1,19 @@
-@ -1,70 +0,0 @@
 #!/bin/bash
-# Standalone claude-dev script using Docker Hub image
 
-# Check if Docker is running
 if ! docker info >/dev/null 2>&1; then
     echo "Error: Docker is not running. Please start Docker and try again."
     exit 1
 fi
 
-# Get current directory and create project-specific naming
 CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
+COMPOSE_FILE="${PROJECT_BASE}docker-compose.override.yml"
+
+mkdir -p ".claude"
+grep -q "^\.claude$" .gitignore 2>/dev/null || echo ".claude" >> .gitignore
+grep -q "^\docker-compose.override.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
+
 
 # Check for CLAUDECODE_API_KEY environment variable
 if [ -n "$CLAUDECODE_API_KEY" ]; then
@@ -22,7 +24,6 @@ else
 fi
 
 # Create project-specific docker-compose file
-COMPOSE_FILE="/tmp/claude-dev-${PROJECT_BASE}-compose.yml"
 cat > "$COMPOSE_FILE" << EOF
 services:
   claude-dev:
@@ -32,16 +33,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-    volumes:
-      - ${CURRENT_DIR}:/var/www/html:cached
-
     environment:
       - NODE_ENV=development
       - NPM_CONFIG_CACHE=/tmp/npm-cache
       - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
       - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
       - PROJECT_PATH=${CURRENT_DIR}
-      - ANTHROPIC_API_KEY=${CLAUDECODE_API_KEY:-}
 
     stdin_open: true
     tty: true
@@ -66,6 +63,4 @@ else
     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
 fi
 
-
-# Clean up compose file (container keeps running)
 rm -f "$COMPOSE_FILE"
