@@ -8,20 +8,16 @@ fi
 CURRENT_DIR=$(pwd)
 PROJECT_BASE=$(basename "$CURRENT_DIR")
 COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
-COMPOSE_FILE="${PROJECT_BASE}docker-compose.override.yml"
+COMPOSE_FILE="docker-compose.override.yml"
 
+if [ -f "~.claude-docker/.credentials.json" ] && [ ! -f ".claude/.credentials.json" ]; then
+    cp ~.claude-docker/.credentials.json .claude/.credentials.json
+elif [ ! -f "~.claude-docker/.credentials.json" ] && [ -f ".claude/.credentials.json" ]; then
+    cp ~.claude-docker/.credentials.json ~.claude/.credentials.json
+fi
 mkdir -p ".claude"
 grep -q "^\.claude$" .gitignore 2>/dev/null || echo ".claude" >> .gitignore
 grep -q "^\docker-compose.override.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
-
-
-# Check for CLAUDECODE_API_KEY environment variable
-if [ -n "$CLAUDECODE_API_KEY" ]; then
-    echo "✓ CLAUDECODE_API_KEY detected - Claude will use API key authentication"
-else
-    echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
-    echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
-fi
 
 # Create project-specific docker-compose file
 cat > "$COMPOSE_FILE" << EOF
@@ -31,7 +27,7 @@ services:
     working_dir: /var/www/html
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "localhost:host-gateway"
 
     environment:
       - NODE_ENV=development

@@ -72,6 +72,14 @@ else
     echo "  ✓ Claude settings already exist in project"
 fi
 
+
+if [ -f "$ROOT/claude/.credentials.json" ] && [ ! -f "~.claude/.credentials.json" ]; then
+    cp ~.$ROOT/credentials.jsonr ~.claude/.credentials.json
+elif [ ! -f "~.$ROOT/.claude-docker/.credentials.json" ] && [ -f "~.claude/.credentials.json" ]; then
+    cp ~.$ROOT/.credentials.json ~.claude/.credentials.json
+fi
+
+
 # Create documentation directory
 mkdir -p $ROOT/docs
 
@@ -80,28 +88,8 @@ mkdir -p $ROOT/docs
 NETWORKING_COPIED=false
 
 # Try different possible locations for the networking documentation
-if [ ! -f "$ROOT/docs/NETWORKING.md" ]; then
-    if [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
-        cp /usr/local/share/docs/NETWORKING.md $ROOT/docs/NETWORKING.md
-        echo "  ✓ Networking documentation copied to $ROOT/docs/NETWORKING.md"
-        NETWORKING_COPIED=true
-    elif [ -f "/usr/local/share/docs/testing/NETWORKING.md" ]; then
-        cp /usr/local/share/docs/testing/NETWORKING.md $ROOT/docs/NETWORKING.md
-        echo "  ✓ Networking documentation copied to $ROOT/docs/NETWORKING.md"
-        NETWORKING_COPIED=true
-    fi
-
-    if [ "$NETWORKING_COPIED" = false ]; then
-        echo "  ⚠ No networking documentation found to copy"
-    fi
-else
-    echo "  ✓ Networking documentation already exists"
-fi
-
-# Copy other documentation if available
-if [ ! -f "$ROOT/docs/CLAUDE.md" ] && [ -f "/usr/local/share/docs/CLAUDE.md" ]; then
-    cp /usr/local/share/docs/CLAUDE.md $ROOT/docs/CLAUDE.md
-    echo "  ✓ Claude documentation copied"
+if [ ! -f "$ROOT/docs/NETWORKING.md" ]; && [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
+    cp /usr/local/share/docs/NETWORKING.md $ROOT/docs/NETWORKING.md
 fi
 
 # Set proper ownership for all project files
@@ -113,109 +101,21 @@ chown -R claude:claude $ROOT/docs 2>/dev/null || true
 
 # Set up bash profile for claude user (preferred for development)
 cat > /home/claude/.bashrc << 'EOF'
-# Claude Dev Environment Bash Configuration
-
-# Source environment variables
 [ -f ~/.claude_env ] && source ~/.claude_env
-
-# Show info on login (only if the script exists)
 if [ -f /usr/local/bin/claude-info ]; then
     /usr/local/bin/claude-info
 elif [ -f /usr/local/bin/claude-help ]; then
     /usr/local/bin/claude-help
 fi
-
-# Standard aliases
 alias ll='ls -la'
 alias ..='cd ..'
 alias ...='cd ../..'
-
-# Development aliases
-alias logs='tail -f /var/log/*.log 2>/dev/null || echo "No logs found"'
-alias ports='netstat -tuln 2>/dev/null || ss -tuln'
-alias procs='ps aux'
-
-# Quick test commands
-alias test-connectivity='ping -c 3 host.docker.internal 2>/dev/null || echo "Cannot reach host.docker.internal"'
-alias test-port='function _test_port() { if [ -z "$1" ]; then echo "Usage: test-port PORT"; else nc -z -v -w3 host.docker.internal $1 2>/dev/null && echo "Port $1: OPEN" || echo "Port $1: CLOSED"; fi; }; _test_port'
-
-# Custom prompt
 PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-
-# Show environment info on login
 echo ""
 echo "🐳 Claude Dev Container Ready"
 echo "  Project: $PROJECT_TYPE"
 echo "  Frontend URL: $FRONTEND_URL"
-echo ""
-echo "📝 Available commands:"
-echo "  test-connectivity  - Test connection to host"
-echo "  test-port 3000     - Test specific port"
-echo "  ll                 - List files with details"
-echo "  logs               - View system logs"
-echo "  ports              - Show open ports"
-echo ""
 EOF
-
-# Also set up bash profile for root user (fallback)
-cat > /root/.bashrc << 'EOF'
-# Claude Dev Environment Bash Configuration (Root)
-
-# Source environment variables
-[ -f ~/.claude_env ] && source ~/.claude_env
-
-# Show info on login (only if the script exists)
-if [ -f /usr/local/bin/claude-info ]; then
-    /usr/local/bin/claude-info
-elif [ -f /usr/local/bin/claude-help ]; then
-    /usr/local/bin/claude-help
-fi
-
-# Standard aliases
-alias ll='ls -la'
-alias ..='cd ..'
-alias ...='cd ../..'
-
-# Development aliases
-alias logs='tail -f /var/log/*.log 2>/dev/null || echo "No logs found"'
-alias ports='netstat -tuln 2>/dev/null || ss -tuln'
-alias procs='ps aux'
-
-# Quick test commands
-alias test-connectivity='ping -c 3 host.docker.internal 2>/dev/null || echo "Cannot reach host.docker.internal"'
-alias test-port='function _test_port() { if [ -z "$1" ]; then echo "Usage: test-port PORT"; else nc -z -v -w3 host.docker.internal $1 2>/dev/null && echo "Port $1: OPEN" || echo "Port $1: CLOSED"; fi; }; _test_port'
-
-# Custom prompt
-PS1='\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-
-# Show environment info
-echo ""
-echo "🐳 Claude Dev Container Ready (ROOT)"
-echo "  Project: $PROJECT_TYPE"
-echo "  Frontend URL: $FRONTEND_URL"
-echo "  💡 Consider switching to claude user: su - claude"
-echo ""
-echo "📝 Available commands:"
-echo "  test-connectivity  - Test connection to host"
-echo "  test-port 3000     - Test specific port"
-echo "  ll                 - List files with details"
-echo ""
-EOF
-
-# Set proper ownership
-chown claude:claude /home/claude/.bashrc
-
-echo ""
-echo "✅ Claude Dev container initialized successfully!"
-echo "📝 Type 'cat ~/README.md' for help"
-echo ""
-
-# Provide choice of user context
-echo "Choose your working environment:"
-echo "1. claude user (recommended for development)"
-echo "2. root user (for system administration)"
-echo ""
-read -p "Enter choice (1-2, default: 1): " USER_CHOICE
 
 # Switch to claude user and start interactive shell
 exec su - claude
