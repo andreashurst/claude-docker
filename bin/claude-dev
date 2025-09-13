@@ -76,6 +76,22 @@ EOF
 
     chmod +x /tmp/claude-entrypoint-$$.sh
 
+    # Check if there's an existing webserver in docker-compose.yml
+    local webserver_config=""
+    if [ -f "docker-compose.yml" ]; then
+        # Look for common webserver service names
+        for service in webserver web nginx apache httpd app server; do
+            if grep -q "^  $service:" docker-compose.yml 2>/dev/null; then
+                echo "📝 Found existing service '$service' - adding to claude-network"
+                webserver_config="
+  $service:
+    networks:
+      - claude-network"
+                break
+            fi
+        done
+    fi
+    
     # Create docker-compose.override.yml
     cat > "docker-compose.override.yml" << EOF
 services:
@@ -97,6 +113,9 @@ services:
     tty: true
     restart: "no"
     
+    networks:
+      - claude-network
+    
     # MacBook Pro optimized resources
     deploy:
       resources:
@@ -108,6 +127,11 @@ services:
           cpus: '1.0'
     
     entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+$webserver_config
+
+networks:
+  claude-network:
+    driver: bridge
 EOF
 
     echo "Created claude-dev configuration"

@@ -179,18 +179,43 @@ claude_docker_create_localhost_mapping() {
 
 echo "🔧 Setting up localhost mapping..."
 
-for i in {1..10}; do
-    if getent hosts webserver >/dev/null 2>&1; then
-        WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
-        if [ -n "$WEBSERVER_IP" ]; then
-            sed -i '/^[^#].*[[:space:]]localhost[[:space:]]*$/d' /etc/hosts | grep -v "127.0.0.1" || true
-            echo "$WEBSERVER_IP localhost" >> /etc/hosts
-            echo "✅ Mapped localhost to webserver ($WEBSERVER_IP)"
+# Try to find the host machine's IP (Docker host)
+HOST_IP=""
+# Try different methods to get host IP
+if [ -f /.dockerenv ]; then
+    # We're in Docker, get host.docker.internal or gateway
+    HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | cut -d' ' -f1)
+    if [ -z "$HOST_IP" ]; then
+        # Fallback to default gateway
+        HOST_IP=$(ip route | grep default | awk '{print $3}')
+    fi
+fi
+
+if [ -n "$HOST_IP" ]; then
+    # Map localhost to host machine
+    echo "$HOST_IP localhost" >> /etc/hosts
+    echo "✅ Mapped localhost to host machine ($HOST_IP)"
+    
+    # Test common dev ports
+    for port in 3000 8080 4200 5173 8000 5000 4000 3001 80; do
+        if nc -z localhost $port 2>/dev/null; then
+            echo "✅ Found service on localhost:$port"
             break
         fi
-    fi
-    [ $i -lt 10 ] && sleep 1
-done
+    done
+else
+    # Fallback: try to find any webserver container
+    for service in webserver web nginx apache httpd app server; do
+        if getent hosts $service >/dev/null 2>&1; then
+            SERVICE_IP=$(getent hosts $service | cut -d' ' -f1)
+            if [ -n "$SERVICE_IP" ]; then
+                echo "$SERVICE_IP localhost" >> /etc/hosts
+                echo "✅ Mapped localhost to $service container ($SERVICE_IP)"
+                break
+            fi
+        fi
+    done
+fi
 EOF
 }
 
