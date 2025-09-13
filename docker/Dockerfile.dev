@@ -73,6 +73,9 @@ RUN mkdir -p /home/claude/.config && \
 # Copy context files to claude user directory
 COPY claude/ /home/claude/.claude/
 
+# Copy MCP default configuration
+COPY docker/mcp-default.json /etc/claude/mcp-default.json
+
 # Fix ownership of copied files
 RUN chown -R claude:claude /home/claude/.claude
 

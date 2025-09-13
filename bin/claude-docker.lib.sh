@@ -12,16 +12,6 @@ claude_docker_check() {
     fi
 }
 
-# Detect webserver type
-claude_docker_detect_webserver() {
-    if [ -f "docker-compose.yml" ] && grep -q "webserver:" docker-compose.yml; then
-        echo "webserver"
-    elif [ -f ".ddev/config.yaml" ]; then
-        echo "ddev"
-    else
-        echo "none"
-    fi
-}
 
 # Detect project type
 claude_docker_detect_project() {
@@ -72,41 +62,7 @@ claude_docker_detect_project() {
     echo "$project_type"
 }
 
-# Copy credentials to container
-claude_docker_copy_credentials_to() {
-    local container_name="$1"
-    local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
 
-    if [ -f "$HOST_CLAUDE_DOCKER" ]; then
-        echo "📥 Copying Claude Docker credentials to container..."
-        docker compose cp "$HOST_CLAUDE_DOCKER" "$container_name:/home/claude/.claude.json" 2>/dev/null || true
-        docker compose exec -T "$container_name" chown claude:claude /home/claude/.claude.json 2>/dev/null || true
-        echo "✅ Credentials copied from $HOST_CLAUDE_DOCKER"
-    else
-        echo "ℹ️  No Claude Docker credentials found"
-        echo "🔐 Starting automatic login..."
-    fi
-}
-
-# Copy credentials from container
-claude_docker_copy_credentials_from() {
-    local container_name="$1"
-    local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
-
-    echo "📤 Saving Claude Docker credentials..."
-    docker compose cp "$container_name:/home/claude/.claude.json" "$HOST_CLAUDE_DOCKER" 2>/dev/null && \
-        echo "✅ Credentials saved to $HOST_CLAUDE_DOCKER" || \
-        echo "⚠️  No credentials to save (not logged in?)"
-}
-
-# Find a free port
-claude_docker_find_free_port() {
-    local port=8080
-    while lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; do
-        ((port++))
-    done
-    echo $port
-}
 
 # Create base docker-compose.yml if needed
 claude_docker_create_base_compose() {
@@ -269,6 +225,7 @@ claude_docker_create_override() {
 
     local CONTAINER_NAME="claude-$ENV_TYPE"
     local IMAGE_TAG="latest-$ENV_TYPE"
+    local VOLUME_NAME="claude-${ENV_TYPE}-data"
 
     # Set resource limits based on environment type
     if [ "$ENV_TYPE" = "flow" ]; then
@@ -295,6 +252,7 @@ services:
 
     volumes:
       - .:/var/www/html
+      - $VOLUME_NAME:/home/claude
       - $ENTRYPOINT_FILE:/usr/local/bin/custom-entrypoint.sh
 
     environment:
@@ -317,6 +275,9 @@ $EXTRA_ENV
           cpus: '$CPU_RESERVE'
 
     entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+
+volumes:
+  $VOLUME_NAME:
 EOF
 
     echo "Created $CONTAINER_NAME configuration"
@@ -344,34 +305,17 @@ chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/c
 EOF
 }
 
-# Create MCP configuration for Claude
+# Create MCP configuration for Claude (simplified)
 claude_docker_create_mcp_config() {
     cat << 'EOF'
-# Create MCP configuration
-mkdir -p /home/claude/.config/claude
-cat > "/home/claude/.config/claude/claude_desktop_config.json" << 'MCPCONFIG'
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "mcp-server-filesystem",
-      "args": ["/var/www/html"]
-    },
-    "memory": {
-      "command": "mcp-server-memory",
-      "args": []
-    },
-    "git": {
-      "command": "mcp-server-git",
-      "args": ["--repository", "/var/www/html"]
-    },
-    "sqlite": {
-      "command": "mcp-server-sqlite",
-      "args": ["--data-dir", "/home/claude/.claude/databases"]
-    }
-  }
-}
-MCPCONFIG
-chown -R claude:claude /home/claude/.config
+# MCP config is now in Docker image at /etc/claude/mcp-default.json
+# Copy only if not exists in volume
+if [ ! -f /home/claude/.config/claude/claude_desktop_config.json ]; then
+    mkdir -p /home/claude/.config/claude
+    cp /etc/claude/mcp-default.json /home/claude/.config/claude/claude_desktop_config.json
+    chown -R claude:claude /home/claude/.config
+    echo "✅ MCP configuration initialized"
+fi
 EOF
 }
 
@@ -582,12 +526,10 @@ claude_docker_connect() {
         sleep 3
         if claude_docker_is_running "$container_name"; then
             echo "✅ Container started successfully!"
-            #claude_docker_copy_credentials_to "$container_name"
             echo "🔗 Connecting to $container_name container as claude user..."
+            echo "📁 Credentials stored in Docker volume: claude-${container_name##*-}-data"
             docker compose exec -u claude "$container_name" bash
-            sleep 1
-            #claude_docker_copy_credentials_from "$container_name"
-            echo "✅ Session ended, credentials saved"
+            echo "✅ Session ended"
         else
             echo "Failed to start. Check logs:"
             docker compose logs "$container_name"

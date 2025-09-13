@@ -82,7 +82,12 @@ main() {
 case "${1:-}" in
     -v|--version) echo "v$VERSION"; exit 0 ;;
     --stop) docker compose stop $CONTAINER_NAME; exit 0 ;;
-    --clean) docker compose down; rm -f docker-compose.override.yml playwright.config.js; exit 0 ;;
+    --clean) 
+        docker compose down -v  # -v removes volumes too
+        rm -f docker-compose.override.yml playwright.config.js
+        echo "✅ Removed container, volume and config"
+        exit 0 
+        ;;
     --root)
         echo "🔐 Starting as root (backdoor mode)..."
         docker compose up -d
@@ -91,6 +96,8 @@ case "${1:-}" in
         ;;
     -h|--help)
         echo "Usage: $0 [--version|--stop|--clean|--root|--help]"
+        echo "  --stop    Stop the container"
+        echo "  --clean   Remove container, volume and config"
         echo "  --root    Start with root access (backdoor)"
         exit 0
         ;;

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-server-filesystem",
+      "args": ["/var/www/html"]
+    },
+    "memory": {
+      "command": "mcp-server-memory",
+      "args": []
+    },
+    "git": {
+      "command": "mcp-server-git",
+      "args": ["--repository", "/var/www/html"]
+    },
+    "sqlite": {
+      "command": "mcp-server-sqlite",
+      "args": ["--data-dir", "/home/claude/.claude/databases"]
+    }
+  }
+}
