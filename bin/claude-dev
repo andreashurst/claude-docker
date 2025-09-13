@@ -1,62 +1,254 @@
 #!/bin/bash
 
+# Claude Docker Universal Installer v3.0.0 - KISS Edition
+# Last updated: 2025-01-13
+
+set -e
+
+VERSION="3.0.0"
+
+# Check Docker
 if ! docker info >/dev/null 2>&1; then
     echo "Error: Docker is not running. Please start Docker and try again."
     exit 1
 fi
 
 CURRENT_DIR=$(pwd)
-PROJECT_BASE=$(basename "$CURRENT_DIR")
-COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-dev"
-COMPOSE_FILE="docker-compose.override.yml"
 
-if [ -f "~.claude-docker/.credentials.json" ] && [ ! -f ".claude/.credentials.json" ]; then
-    cp ~.claude-docker/.credentials.json .claude/.credentials.json
-elif [ ! -f "~.claude-docker/.credentials.json" ] && [ -f ".claude/.credentials.json" ]; then
-    cp ~.claude-docker/.credentials.json ~.claude/.credentials.json
+# Simple detection - just check what exists
+detect_webserver() {
+    if [ -f "docker-compose.yml" ] && grep -q "webserver:" docker-compose.yml; then
+        echo "webserver"
+    elif [ -f ".ddev/config.yaml" ]; then
+        echo "ddev"
+    else
+        echo "none"
+    fi
+}
+
+# Create compose files
+create_files() {
+    local webserver_type=$(detect_webserver)
+
+    # Create standard webserver if none exists
+    if [ "$webserver_type" = "none" ]; then
+        cat > "docker-compose.yml" << 'EOF'
+services:
+  webserver:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+    volumes:
+      - .:/var/www/html
+EOF
+        echo "Created basic webserver"
+        webserver_type="webserver"
+    fi
+
+    # Ask about override file
+    if [ -f "docker-compose.override.yml" ]; then
+        read -p "Replace existing docker-compose.override.yml? (y/N): " -n 1 -r
+        echo
+        [[ ! $REPLY =~ ^[Yy]$ ]] && return 0
+    fi
+
+    # Simple localhost mapping based on webserver type
+    local localhost_target="webserver"
+    [ "$webserver_type" = "ddev" ] && localhost_target="host-gateway"
+
+    # Create custom entrypoint
+    cat > ".claude/entrypoint.sh" << 'EOF'
+#!/bin/bash
+
+# Claude Dev Container Entrypoint - KISS Edition
+# Auto-maps localhost, sets up environment, always runs as claude user
+
+ROOT="/var/www/html"
+
+# ═══════════════════════════════════════════════════════════
+# LOCALHOST MAPPING (as root)
+# ═══════════════════════════════════════════════════════════
+
+if getent hosts webserver >/dev/null 2>&1; then
+    WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
+    sed -i '/[[:space:]]localhost[[:space:]]*$/d' /etc/hosts
+    echo "$WEBSERVER_IP localhost" >> /etc/hosts
+    echo "Mapped localhost to webserver ($WEBSERVER_IP)"
 fi
-mkdir -p ".claude"
-grep -q "^\.claude$" .gitignore 2>/dev/null || echo ".claude" >> .gitignore
-grep -q "^\docker-compose.override.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
 
-# Create project-specific docker-compose file
-cat > "$COMPOSE_FILE" << EOF
+# ═══════════════════════════════════════════════════════════
+# SETUP CLAUDE ENVIRONMENT
+# ═══════════════════════════════════════════════════════════
+
+# Create .claude directory structure
+mkdir -p $ROOT/.claude/{docs,scripts,config}
+chown -R claude:claude $ROOT/.claude
+
+# Copy helpful documentation to .claude/docs/
+cat > "$ROOT/.claude/docs/README.md" << 'EOF2'
+# Claude Development Environment
+
+## Quick Start
+- `curl localhost` - Access webserver
+- `curl webserver` - Direct webserver access
+- `claude auth login` - Login to Claude (first time)
+
+## Project Structure
+- `.claude/docs/` - Documentation
+- `.claude/scripts/` - Helper scripts
+- `.claude/config/` - Local configs
+
+## Networking
+- localhost → webserver container
+- webserver → direct service access
+- host-gateway → Docker host system
+
+## Credentials
+- Auto-synced to ~/.claude-docker/
+- Shared across projects
+EOF2
+
+cat > "$ROOT/.claude/docs/NETWORKING.md" << 'EOF2'
+# Container Networking Guide
+
+## Available Hostnames
+- `localhost` - Webserver container (auto-mapped)
+- `webserver` - Direct webserver service
+- `host-gateway` - Docker host system
+- `host.docker.internal` - Docker host (macOS/Windows)
+
+## Port Access
+- Port 80: `curl localhost` or `curl webserver`
+- Host ports: `curl host-gateway:3000`
+- Database: `curl db:3306` (if exists)
+
+## Troubleshooting
+- Check mapping: `cat /etc/hosts`
+- Test services: `ping webserver`
+- View containers: `docker compose ps`
+EOF2
+
+# Create useful scripts
+cat > "$ROOT/.claude/scripts/test-connectivity.sh" << 'EOF2'
+#!/bin/bash
+echo "Testing container connectivity..."
+echo "localhost: $(curl -s -o /dev/null -w "%{http_code}" localhost || echo "failed")"
+echo "webserver: $(curl -s -o /dev/null -w "%{http_code}" webserver || echo "failed")"
+echo "host-gateway: $(ping -c1 host-gateway >/dev/null 2>&1 && echo "ok" || echo "failed")"
+EOF2
+
+chmod +x $ROOT/.claude/scripts/test-connectivity.sh
+
+# Set ownership
+chown -R claude:claude $ROOT/.claude
+
+# ═══════════════════════════════════════════════════════════
+# CLAUDE USER SETUP
+# ═══════════════════════════════════════════════════════════
+
+# Simple .bashrc for claude user
+cat > /home/claude/.bashrc << 'EOF2'
+# Claude Dev Environment
+alias ll='ls -la'
+alias ..='cd ..'
+alias test-connectivity='/home/claude/.claude/scripts/test-connectivity.sh'
+PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+echo ""
+echo "Claude Dev Container Ready"
+echo "  Working Directory: $(pwd)"
+echo "  Help: cat ~/.claude/docs/README.md"
+echo "  Test Network: test-connectivity"
+echo ""
+EOF2
+
+# Switch to claude user and start shell
+exec su - claude -c "cd /var/www/html && exec bash"
+EOF
+
+    chmod +x /tmp/claude-entrypoint.sh
+
+    # Create override with custom entrypoint from tmp
+    cat > "docker-compose.override.yml" << EOF
 services:
   claude-dev:
     image: andreashurst/claude-docker:latest-dev
     working_dir: /var/www/html
+    user: "0:0"
+
+    volumes:
+      - .:/var/www/html
+      - ~/.claude-docker:/home/claude/.config/claude
+      - /tmp/claude-entrypoint.sh:/usr/local/bin/custom-entrypoint.sh
 
     extra_hosts:
-      - "localhost:host-gateway"
+      - "localhost:$localhost_target"
+      - "host-gateway:host-gateway"
 
     environment:
       - NODE_ENV=development
-      - NPM_CONFIG_CACHE=/tmp/npm-cache
-      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
-      - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
-      - PROJECT_PATH=${CURRENT_DIR}
+      - PROJECT_PATH=$CURRENT_DIR
 
     stdin_open: true
     tty: true
-
-    security_opt:
-      - no-new-privileges:true
-
     restart: "no"
 
+    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
 EOF
 
-# Check if container is already running, if not start it
-if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-dev; then
-    echo "Starting ${COMPOSE_PROJECT_NAME}..."
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
-    # Wait a moment for container to be ready
-    sleep 2
-    # Connect to the running container
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash /usr/local/bin/entrypoint.sh
-else
-    echo "Container ${COMPOSE_PROJECT_NAME} already running..."
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-dev bash
-fi
+    echo "Created claude-dev configuration"
 
-rm -f "$COMPOSE_FILE"
+    # Simple README without local .claude folder
+    cat > "README-Claude.md" << EOF
+# Claude Dev Environment
+
+## Usage:
+- \`curl localhost\` - Access webserver
+- \`curl webserver\` - Direct webserver access
+- Credentials auto-sync to ~/.claude-docker/
+
+## First time:
+1. \`claude auth login\`
+2. Credentials automatically saved globally
+
+## Help:
+- In container: \`cat ~/.claude/docs/README.md\`
+- Test network: \`test-connectivity\`
+EOF
+
+    # Update gitignore (no .claude folder to ignore anymore)
+    grep -q "^docker-compose\.override\.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
+}
+
+# Main function
+main() {
+    echo "Claude Docker Installer v$VERSION"
+    echo "================================="
+
+    create_files
+
+    echo "Starting containers..."
+    docker compose down 2>/dev/null || true
+    docker compose up -d
+
+    sleep 2
+
+    if docker compose ps "claude-dev" 2>/dev/null | grep -q "Up"; then
+        echo "Success! Connecting to Claude container..."
+        docker compose exec claude-dev bash
+    else
+        echo "Failed to start. Check logs:"
+        docker compose logs claude-dev
+        exit 1
+    fi
+}
+
+# Handle arguments
+case "${1:-}" in
+    -v|--version) echo "v$VERSION"; exit 0 ;;
+    --stop) docker compose stop claude-dev; exit 0 ;;
+    --clean) docker compose down; rm -f docker-compose.override.yml; rm -rf .claude; exit 0 ;;
+    -h|--help) echo "Usage: $0 [--version|--stop|--clean|--help]"; exit 0 ;;
+    "") main ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+esac

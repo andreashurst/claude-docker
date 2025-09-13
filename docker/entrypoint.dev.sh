@@ -1,121 +1,106 @@
 #!/bin/bash
 
-# Claude Dev Container Entrypoint
-# This script initializes the container environment
-# Runs as root initially, then switches to claude user for interactive work
+# Claude Dev Container Entrypoint - KISS Edition
+# Auto-maps localhost, sets up environment, always runs as claude user
 
 ROOT="/var/www/html"
 
 # ═══════════════════════════════════════════════════════════
-# PROJECT DETECTION AND CONFIGURATION
+# LOCALHOST MAPPING (as root)
 # ═══════════════════════════════════════════════════════════
 
-# Detect project type and set intelligent default
-if [ -d "$ROOT.ddev" ]; then
-    # Extract project details from .ddev/config.yaml
-    if [ -f "$ROOT/.ddev/config.yaml" ]; then
-        PROJECT_NAME=$(grep "^name:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-
-        # Try to get URLs in priority order
-        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        PROJECT_TLD=$(grep "^project_tld:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
-
-        if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
-            DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
-        elif [ -n "$ADDITIONAL_HOSTNAMES" ] && [ "$ADDITIONAL_HOSTNAMES" != "" ]; then
-            DEFAULT_URL="https://${ADDITIONAL_HOSTNAMES}"
-        else
-            # Use project_tld if set, otherwise default to ddev.site
-            if [ -n "$PROJECT_TLD" ] && [ "$PROJECT_TLD" != "" ]; then
-                DEFAULT_URL="https://${PROJECT_NAME}.${PROJECT_TLD}"
-            else
-                DEFAULT_URL="https://${PROJECT_NAME}.ddev.site"
-            fi
-        fi
-    else
-        DEFAULT_URL="localhost:3000"
-    fi
-    PROJECT_TYPE="DDEV"
-else
-    DEFAULT_URL="localhost:3000"
-    PROJECT_TYPE="Standard"
+if getent hosts webserver >/dev/null 2>&1; then
+    WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
+    sed -i '/[[:space:]]localhost[[:space:]]*$/d' /etc/hosts
+    echo "$WEBSERVER_IP localhost" >> /etc/hosts
+    echo "Mapped localhost to webserver ($WEBSERVER_IP)"
 fi
-
-# Interactive frontend URL input (only on container start)
-echo ""
-echo "🎯 $PROJECT_TYPE project detected"
-echo ""
-read -p "Frontend URL (default: $DEFAULT_URL): " FRONTEND_INPUT
-export FRONTEND_URL=${FRONTEND_INPUT:-$DEFAULT_URL}
-
-# Save the frontend URL for future sessions (both root and claude user)
-echo "export FRONTEND_URL='$FRONTEND_URL'" > /root/.claude_env
-echo "export FRONTEND_URL='$FRONTEND_URL'" > /home/claude/.claude_env
-chown claude:claude /home/claude/.claude_env
 
 # ═══════════════════════════════════════════════════════════
-# FILE OPERATIONS AND SETUP (as root)
+# SETUP CLAUDE ENVIRONMENT
 # ═══════════════════════════════════════════════════════════
 
-# Copy Claude settings if available
-if [ ! -f "$ROOT/.claude/settings.local.json" ]; then
-    if [ -f "/home/claude/.claude/settings.local.json" ]; then
-        mkdir -p $ROOT/.claude
-        cp /home/claude/.claude/settings.local.json $ROOT/.claude/settings.local.json
-        chown -R claude:claude $ROOT/.claude
-        echo "  ✓ Claude settings copied to project directory"
-    else
-        echo "  ⚠ No Claude settings found (this is normal for first run)"
-    fi
-else
-    echo "  ✓ Claude settings already exist in project"
-fi
+# Create .claude directory structure
+mkdir -p $ROOT/.claude/{docs,scripts,config}
+chown -R claude:claude $ROOT/.claude
 
+# Copy helpful documentation to .claude/docs/
+cat > "$ROOT/.claude/docs/README.md" << 'EOF'
+# Claude Development Environment
 
-if [ -f "$ROOT/claude/.credentials.json" ] && [ ! -f "~.claude/.credentials.json" ]; then
-    cp ~.$ROOT/credentials.jsonr ~.claude/.credentials.json
-elif [ ! -f "~.$ROOT/.claude-docker/.credentials.json" ] && [ -f "~.claude/.credentials.json" ]; then
-    cp ~.$ROOT/.credentials.json ~.claude/.credentials.json
-fi
+## Quick Start
+- `curl localhost` - Access webserver
+- `curl webserver` - Direct webserver access
+- `claude auth login` - Login to Claude (first time)
 
+## Project Structure
+- `.claude/docs/` - Documentation
+- `.claude/scripts/` - Helper scripts
+- `.claude/config/` - Local configs
 
-# Create documentation directory
-mkdir -p $ROOT/docs
+## Networking
+- localhost → webserver container
+- webserver → direct service access
+- host-gateway → Docker host system
 
-# Copy documentation to mounted volume if they don't exist
-# Check multiple possible source locations
-NETWORKING_COPIED=false
-
-# Try different possible locations for the networking documentation
-if [ ! -f "$ROOT/docs/NETWORKING.md" ]; && [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
-    cp /usr/local/share/docs/NETWORKING.md $ROOT/docs/NETWORKING.md
-fi
-
-# Set proper ownership for all project files
-chown -R claude:claude $ROOT/docs 2>/dev/null || true
-
-# ═══════════════════════════════════════════════════════════
-# USER ENVIRONMENT SETUP
-# ═══════════════════════════════════════════════════════════
-
-# Set up bash profile for claude user (preferred for development)
-cat > /home/claude/.bashrc << 'EOF'
-[ -f ~/.claude_env ] && source ~/.claude_env
-if [ -f /usr/local/bin/claude-info ]; then
-    /usr/local/bin/claude-info
-elif [ -f /usr/local/bin/claude-help ]; then
-    /usr/local/bin/claude-help
-fi
-alias ll='ls -la'
-alias ..='cd ..'
-alias ...='cd ../..'
-PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-echo ""
-echo "🐳 Claude Dev Container Ready"
-echo "  Project: $PROJECT_TYPE"
-echo "  Frontend URL: $FRONTEND_URL"
+## Credentials
+- Auto-synced to ~/.claude-docker/
+- Shared across projects
 EOF
 
-# Switch to claude user and start interactive shell
-exec su - claude
+cat > "$ROOT/.claude/docs/NETWORKING.md" << 'EOF'
+# Container Networking Guide
+
+## Available Hostnames
+- `localhost` - Webserver container (auto-mapped)
+- `webserver` - Direct webserver service
+- `host-gateway` - Docker host system
+- `host.docker.internal` - Docker host (macOS/Windows)
+
+## Port Access
+- Port 80: `curl localhost` or `curl webserver`
+- Host ports: `curl host-gateway:3000`
+- Database: `curl db:3306` (if exists)
+
+## Troubleshooting
+- Check mapping: `cat /etc/hosts`
+- Test services: `ping webserver`
+- View containers: `docker compose ps`
+EOF
+
+# Create useful scripts
+cat > "$ROOT/.claude/scripts/test-connectivity.sh" << 'EOF'
+#!/bin/bash
+echo "Testing container connectivity..."
+echo "localhost: $(curl -s -o /dev/null -w "%{http_code}" localhost || echo "failed")"
+echo "webserver: $(curl -s -o /dev/null -w "%{http_code}" webserver || echo "failed")"
+echo "host-gateway: $(ping -c1 host-gateway >/dev/null 2>&1 && echo "ok" || echo "failed")"
+EOF
+
+chmod +x $ROOT/.claude/scripts/test-connectivity.sh
+
+# Set ownership
+chown -R claude:claude $ROOT/.claude
+
+# ═══════════════════════════════════════════════════════════
+# CLAUDE USER SETUP
+# ═══════════════════════════════════════════════════════════
+
+# Simple .bashrc for claude user
+cat > /home/claude/.bashrc << 'EOF'
+# Claude Dev Environment
+alias ll='ls -la'
+alias ..='cd ..'
+alias test-connectivity='/home/claude/.claude/scripts/test-connectivity.sh'
+PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+echo ""
+echo "Claude Dev Container Ready"
+echo "  Working Directory: $(pwd)"
+echo "  Help: cat ~/.claude/docs/README.md"
+echo "  Test Network: test-connectivity"
+echo ""
+EOF
+
+# Switch to claude user and start shell
+exec su - claude -c "cd /var/www/html && exec bash"
