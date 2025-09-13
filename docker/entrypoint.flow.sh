@@ -7,6 +7,8 @@
 # Set PATH to include Deno and local binaries
 export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
 
+ROOT="/var/www/html"
+
 # ═══════════════════════════════════════════════════════════
 # ROOT OPERATIONS (system-level setup)
 # ═══════════════════════════════════════════════════════════
@@ -50,15 +52,15 @@ fi
 # ═══════════════════════════════════════════════════════════
 
 # Detect project type and set intelligent default
-if [ -d "/var/www/html/.ddev" ]; then
+if [ -d "$ROOT/.ddev" ]; then
     # Extract project details from .ddev/config.yaml
-    if [ -f "/var/www/html/.ddev/config.yaml" ]; then
-        PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+    if [ -f "$ROOT/.ddev/config.yaml" ]; then
+        PROJECT_NAME=$(grep "^name:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
 
         # Try to get URLs in priority order
-        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
-        PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
+        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" $ROOT/.ddev/config.yaml | cut -d':' -f2- | tr -d '[]"' | sed 's/,.*//g' | tr -d ' ')
+        PROJECT_TLD=$(grep "^project_tld:" $ROOT/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
 
         if [ -n "$ADDITIONAL_FQDNS" ] && [ "$ADDITIONAL_FQDNS" != "" ]; then
             DEFAULT_URL="https://${ADDITIONAL_FQDNS}"
@@ -93,12 +95,12 @@ echo "export FRONTEND_URL='$FRONTEND_URL'" > /home/claude/.claude_env
 chown claude:claude /home/claude/.claude_env
 
 # Copy Claude settings if available (check both possible locations)
-if [ ! -f "/var/www/html/.claude/settings.local.json" ]; then
+if [ ! -f "$ROOT/.claude/settings.local.json" ]; then
     # Try to find settings in the container
     if [ -f "/home/claude/.claude/settings.local.json" ]; then
-        mkdir -p /var/www/html/.claude
-        cp /home/claude/.claude/settings.local.json /var/www/html/.claude/settings.local.json
-        chown -R claude:claude /var/www/html/.claude
+        mkdir -p $ROOT/.claude
+        cp /home/claude/.claude/settings.local.json $ROOT/.claude/settings.local.json
+        chown -R claude:claude $ROOT/.claude
         echo "  ✓ Copied Claude settings to project directory"
     else
         echo "  ⚠ No Claude settings found (this is normal for first run)"
@@ -108,35 +110,14 @@ else
 fi
 
 # Copy examples from container to mounted volume if they don't exist
-mkdir -p /var/www/html/playwright/examples
-mkdir -p /var/www/html/docs
-
-# Copy Playwright config example to mounted volume if it doesn't exist
-if [ ! -f "/var/www/html/playwright/examples/playwright.config.js" ] && [ -f "/usr/local/share/claude/examples/playwright.config.js" ]; then
-    cp /usr/local/share/claude/examples/playwright.config.js /var/www/html/playwright/examples/playwright.config.js
-    echo "  ✓ Copied Playwright config example"
-fi
-
-# Copy example test to mounted volume if it doesn't exist
-if [ ! -f "/var/www/html/playwright/examples/example-test.spec.js" ] && [ -f "/usr/local/share/claude/examples/example-test.spec.js" ]; then
-    cp /usr/local/share/claude/examples/example-test.spec.js /var/www/html/playwright/examples/example-test.spec.js
-    echo "  ✓ Copied example test"
-fi
-
-# Copy documentation to mounted volume if they don't exist
-if [ ! -f "/var/www/html/docs/PLAYWRIGHT.md" ] && [ -f "/usr/local/share/docs/PLAYWRIGHT.md" ]; then
-    cp /usr/local/share/docs/PLAYWRIGHT.md /var/www/html/docs/PLAYWRIGHT.md
-    echo "  ✓ Copied PLAYWRIGHT.md"
-fi
-
-if [ ! -f "/var/www/html/docs/NETWORKING.md" ] && [ -f "/usr/local/share/docs/NETWORKING.md" ]; then
-    cp /usr/local/share/docs/NETWORKING.md /var/www/html/docs/NETWORKING.md
-    echo "  ✓ Copied NETWORKING.md"
-fi
+mkdir -p "$ROOT/playwright/examples"
+cp /usr/local/share/playwright/* $ROOT/playwright/
+mkdir -p $ROOT/docs
+cp /usr/local/share/docs/* $ROOT/docs/
 
 # Set proper ownership of copied files
-chown -R claude:claude /var/www/html/playwright 2>/dev/null || true
-chown -R claude:claude /var/www/html/docs 2>/dev/null || true
+chown -R claude:claude $ROOT/playwright 2>/dev/null || true
+chown -R claude:claude $ROOT/docs 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════
 # USER ENVIRONMENT SETUP
@@ -190,41 +171,6 @@ EOF
 # Set ownership of bashrc
 chown claude:claude /home/claude/.bashrc
 
-# Create quick reference card
-cat > /home/claude/README.md << 'EOF'
-═══════════════════════════════════════════════════════════════════
-                    DOCKER DEVELOPMENT TOOLS
-═══════════════════════════════════════════════════════════════════
-
-QUICK START:
-  curl http://localhost:3000              # Auto-rewrites URLs
-  playwright screenshot URL output.png    # Takes screenshots
-  vite-proxy 3000                         # Start HMR proxy
-
-URL REWRITING:
-  localhost:3000 → host.docker.internal:3000 (automatic)
-
-TEST COMMANDS:
-  test-curl            # Test curl wrapper
-  test-playwright      # Test playwright wrapper
-  test-connectivity    # Test host connection
-  test-tools          # Test all tools
-
-TROUBLESHOOTING:
-  If "command not found", use full paths:
-    /usr/local/bin/curl-docker
-    /usr/local/bin/playwright-docker
-
-FILES:
-  ~/README.md    # This help
-  ~/.claude_env              # Your environment variables
-  /var/www/html/docs/        # Documentation
-
-═══════════════════════════════════════════════════════════════════
-EOF
-
-chown claude:claude /home/claude/README.md
-
 echo ""
 echo "✅ Claude Flow container initialized successfully!"
 echo "✅ Docker tools installed and configured!"
@@ -233,4 +179,4 @@ echo "📝 Type 'cat ~/README.md' for tool usage"
 echo ""
 
 # Switch to claude user and start interactive shell
-#exec su - claude
+exec su - claude

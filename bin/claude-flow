@@ -1,159 +1,568 @@
 #!/bin/bash
-# Standalone claude-flow script using Docker Hub image
 
-# Check if Docker is running
+# Claude Flow Docker Installer v1.0.0
+# Advanced testing and automation environment based on Claude Dev
+# Last updated: 2025-01-13
+
+set -e
+
+VERSION="1.0.0"
+
+# Check Docker
 if ! docker info >/dev/null 2>&1; then
     echo "Error: Docker is not running. Please start Docker and try again."
     exit 1
 fi
 
-# Get current directory and create project-specific naming
 CURRENT_DIR=$(pwd)
-PROJECT_BASE=$(basename "$CURRENT_DIR")
-COMPOSE_PROJECT_NAME="${PROJECT_BASE}-claude-flow"
 
-# Setup cleanup trap
-cleanup() {
-    if [ -n "$COMPOSE_FILE" ] && [ -f "$COMPOSE_FILE" ]; then
-        rm -f "$COMPOSE_FILE"
-    fi
-    if [ -n "$MCP_CONFIG_DIR" ] && [ -d "$MCP_CONFIG_DIR" ]; then
-        rm -rf "$MCP_CONFIG_DIR"
+# Detect webserver (same as claude-dev)
+detect_webserver() {
+    if [ -f "docker-compose.yml" ] && grep -q "webserver:" docker-compose.yml; then
+        echo "webserver"
+    elif [ -f ".ddev/config.yaml" ]; then
+        echo "ddev"
+    else
+        echo "none"
     fi
 }
-trap cleanup EXIT
 
-# Create project-specific MCP configuration
-MCP_CONFIG_DIR="/tmp/claude-config-${PROJECT_BASE}"
-# Remove if exists (in case it was created as a file by mistake)
-rm -rf "$MCP_CONFIG_DIR" 2>/dev/null
-mkdir -p "$MCP_CONFIG_DIR"
+# Detect project type (same as claude-dev)
+detect_project_type() {
+    local project_type="generic"
+    
+    if [ -f "package.json" ]; then
+        if [ -f "next.config.js" ] || [ -f "next.config.mjs" ]; then
+            project_type="nextjs"
+        elif [ -f "vite.config.js" ] || [ -f "vite.config.ts" ]; then
+            project_type="vite"
+        elif [ -f "webpack.config.js" ]; then
+            project_type="webpack"
+        else
+            project_type="node"
+        fi
+    elif [ -f "composer.json" ]; then
+        if [ -f "artisan" ]; then
+            project_type="laravel"
+        elif [ -d "wp-content" ]; then
+            project_type="wordpress"
+        else
+            project_type="php"
+        fi
+    elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "Pipfile" ]; then
+        if [ -f "manage.py" ]; then
+            project_type="django"
+        else
+            project_type="python"
+        fi
+    elif [ -f "Gemfile" ]; then
+        if [ -f "config.ru" ]; then
+            project_type="rails"
+        else
+            project_type="ruby"
+        fi
+    elif [ -f "go.mod" ]; then
+        project_type="go"
+    elif [ -f "Cargo.toml" ]; then
+        project_type="rust"
+    fi
+    
+    echo "$project_type"
+}
 
-# Check for CLAUDECODE_API_KEY environment variable
-if [ -f ~/.claude-code/CLAUDECODE_API_KEY ]; then
-    CLAUDECODE_API_KEY=$(cat ~/.claude-code/CLAUDECODE_API_KEY)
-    echo "✓ CLAUDECODE_API_KEY detected from file - Claude will use API key authentication"
-elif [ -n "$CLAUDECODE_API_KEY" ]; then
-    echo "✓ CLAUDECODE_API_KEY detected from environment - Claude will use API key authentication"
-else
-    echo "ℹ No CLAUDECODE_API_KEY found - you'll need to run 'claude auth login' in the container"
-    echo "  Or set: export CLAUDECODE_API_KEY='your-api-key'"
-fi
+# Copy credentials (same mechanism as claude-dev)
+copy_credentials_to_container() {
+    local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
+    
+    if [ -f "$HOST_CLAUDE_DOCKER" ]; then
+        echo "📥 Copying Claude Docker credentials to container..."
+        docker compose cp "$HOST_CLAUDE_DOCKER" claude-flow:/home/claude/.claude.json 2>/dev/null || true
+        docker compose exec -T claude-flow chown claude:claude /home/claude/.claude.json 2>/dev/null || true
+        echo "✅ Credentials copied from $HOST_CLAUDE_DOCKER"
+    else
+        echo "ℹ️  No Claude Docker credentials found"
+        echo "   Run 'claude auth login' in container to create them"
+    fi
+}
 
-cat > "$MCP_CONFIG_DIR/claude_desktop_config.json" << 'EOF'
+copy_credentials_from_container() {
+    echo "📤 Saving Claude Docker credentials..."
+    local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
+    
+    docker compose cp claude-flow:/home/claude/.claude.json "$HOST_CLAUDE_DOCKER" 2>/dev/null && \
+        echo "✅ Credentials saved to $HOST_CLAUDE_DOCKER" || \
+        echo "⚠️  No credentials to save (not logged in?)"
+}
+
+# Create compose files for Flow
+create_files() {
+    local webserver_type=$(detect_webserver)
+
+    # Create standard webserver if none exists
+    if [ "$webserver_type" = "none" ] && [ ! -f "docker-compose.yml" ]; then
+        echo "📝 Creating standard docker-compose.yml with webserver..."
+        cat > "docker-compose.yml" << 'EOF'
+services:
+  webserver:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+    volumes:
+      - .:/var/www/html
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+EOF
+        if [ ! -f "index.html" ]; then
+            echo "<h1>Claude Flow Environment</h1>" > index.html
+        fi
+        echo "✅ Created basic webserver"
+        webserver_type="webserver"
+    fi
+
+    # Ask about override file
+    if [ -f "docker-compose.override.yml" ]; then
+        read -p "Replace existing docker-compose.override.yml? (y/N): " -n 1 -r
+        echo
+        [[ ! $REPLY =~ ^[Yy]$ ]] && return 0
+    fi
+
+    # Create playwright.config.js ONLY if it doesn't exist
+    if [ ! -f "playwright.config.js" ] && [ ! -f "playwright.config.ts" ]; then
+        echo "📝 Creating default playwright.config.js (customize as needed)..."
+        cat > "playwright.config.js" << 'PWCONFIG'
+// @ts-check
+const { defineConfig, devices } = require('@playwright/test');
+
+/**
+ * Playwright configuration for Claude Flow
+ * @see https://playwright.dev/docs/test-configuration
+ */
+module.exports = defineConfig({
+  testDir: './playwright-tests',
+  outputDir: './playwright-results',
+  
+  // Maximum time one test can run
+  timeout: 30 * 1000,
+  
+  // Run tests in parallel
+  fullyParallel: true,
+  
+  // Fail the build on CI if you accidentally left test.only
+  forbidOnly: !!process.env.CI,
+  
+  // Retry on CI only
+  retries: process.env.CI ? 2 : 0,
+  
+  // Parallel workers on CI, single on local
+  workers: process.env.CI ? 1 : undefined,
+  
+  // Reporter configuration
+  reporter: [
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['list'],
+    ['json', { outputFile: 'playwright-results/results.json' }]
+  ],
+  
+  use: {
+    // Base URL for all tests
+    baseURL: process.env.BASE_URL || 'http://localhost',
+    
+    // Collect trace when retrying the failed test
+    trace: 'on-first-retry',
+    
+    // Screenshot on failure
+    screenshot: {
+      mode: 'only-on-failure',
+      fullPage: true
+    },
+    
+    // Video on failure
+    video: 'retain-on-failure',
+    
+    // Artifacts folder
+    artifactsPath: './playwright-results/artifacts'
+  },
+
+  // Configure projects for major browsers
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    // Mobile testing
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
+  ],
+
+  // Local dev server (if needed)
+  webServer: process.env.NO_WEBSERVER ? undefined : {
+    command: 'echo "Using existing webserver"',
+    url: 'http://localhost',
+    reuseExistingServer: true,
+  },
+});
+PWCONFIG
+        echo "✅ Created playwright.config.js - you can customize it as needed"
+    else
+        echo "✅ Using existing playwright.config.js/ts"
+    fi
+
+    # Setup test directories with playwright prefix
+    echo "📁 Setting up Playwright directories..."
+    mkdir -p playwright-tests
+    mkdir -p playwright-results
+    mkdir -p playwright-report
+    
+    # Simple gitignore - just playwright*
+    if [ -f ".gitignore" ]; then
+        grep -q "^playwright" .gitignore || echo -e "\n# Playwright artifacts\nplaywright*" >> .gitignore
+    else
+        cat > .gitignore << 'GITIGNORE'
+# Playwright artifacts
+playwright*
+
+# Docker
+docker-compose.override.yml
+
+# Claude
+.claude.docker.json
+GITIGNORE
+    fi
+
+    # Create MCP configuration for Playwright and claude-flow
+    mkdir -p .claude
+    cat > ".claude/mcp-config.json" << 'MCPEOF'
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/var/www/html"]
-    },
     "playwright": {
       "command": "npx",
       "args": ["@playwright/mcp"],
       "env": {
-        "PLAYWRIGHT_BROWSERS_PATH": "/home/claude/.cache/ms-playwright"
+        "PLAYWRIGHT_CONFIG_PATH": "/var/www/html/playwright.config.js",
+        "NODE_PATH": "/usr/local/lib/node_modules"
       }
     },
-    "git": {
-      "command": "python3",
-      "args": ["-m", "mcp_server_git", "--repository", "/var/www/html"]
-    }
-  },
-  "environmentInfo": {
-    "internalWebServer": {
-      "status": "Will be started on container launch",
-      "url": "http://localhost:80",
-      "hostAccess": "http://localhost:8080",
-      "description": "Internal Python HTTP server for Playwright testing",
-      "note": "Server directory will be auto-detected or prompted during startup"
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "--root", "/var/www/html"]
     },
-    "playwrightUsage": {
-      "description": "Use Playwright with the internal web server",
-      "testCommand": "await page.goto('http://localhost:80')",
-      "codegen": "playwright codegen http://localhost:80"
-    },
-    "container": {
-      "workingDirectory": "/var/www/html",
-      "user": "claude (UID 1010)",
-      "runtimes": ["node", "deno", "python3"],
-      "tools": [
-        "node", "npm", "npx", "pnpm", "deno",
-        "python3", "pip3",
-        "git", "curl", "wget", "ssh",
-        "playwright", "sqlite3",
-        "jq", "ripgrep", "tree", "htop", "nc",
-        "nano", "vim", "make",
-        "claude", "claude-flow",
-        "test-host-connectivity", "test-port"
-      ],
-      "volumes": {
-        "project": "Current directory mounted to /var/www/html",
-        "mcp_config": "Temporary MCP config (regenerated each run)"
-      },
-      "note": "Cache and config directories are temporary and reset on container restart"
+    "claude-flow": {
+      "command": "npx",
+      "args": ["claude-flow@latest"],
+      "env": {
+        "CLAUDE_FLOW_HOME": "/home/claude/.claude-flow",
+        "HIVE_MIND_HOME": "/home/claude/.hive-mind",
+        "SWARM_HOME": "/home/claude/.swarm",
+        "MEMORY_HOME": "/home/claude/.memory",
+        "HOME": "/home/claude"
+      }
     }
   }
 }
+MCPEOF
+
+    # Create custom entrypoint for Flow
+    cat > "/tmp/claude-flow-entrypoint-$$.sh" << 'EOF'
+#!/bin/bash
+
+# Claude Flow Container Entrypoint
+# Advanced testing environment with Playwright and automation tools
+
+ROOT="/var/www/html"
+
+# ═══════════════════════════════════════════════════════════
+# LOCALHOST MAPPING (as root)
+# ═══════════════════════════════════════════════════════════
+
+echo "🔧 Setting up localhost mapping..."
+
+for i in {1..10}; do
+    if getent hosts webserver >/dev/null 2>&1; then
+        WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
+        if [ -n "$WEBSERVER_IP" ]; then
+            sed -i '/^[^#].*[[:space:]]localhost[[:space:]]*$/d' /etc/hosts | grep -v "127.0.0.1" || true
+            echo "$WEBSERVER_IP localhost" >> /etc/hosts
+            echo "✅ Mapped localhost to webserver ($WEBSERVER_IP)"
+            break
+        fi
+    fi
+    [ $i -lt 10 ] && sleep 1
+done
+
+# ═══════════════════════════════════════════════════════════
+# FLOW ENVIRONMENT SETUP
+# ═══════════════════════════════════════════════════════════
+
+# Set environment
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+export TERM=xterm-256color
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+export FLOW_MODE=true
+
+# Playwright specific settings
+export PLAYWRIGHT_SCREENSHOTS_DIR="/var/www/html/playwright-results"
+export PLAYWRIGHT_TEST_OUTPUT_DIR="/var/www/html/playwright-results"
+export PLAYWRIGHT_HTML_REPORT="/var/www/html/playwright-report"
+
+# Claude-flow directories in home (not in project!)
+export CLAUDE_FLOW_HOME="/home/claude/.claude-flow"
+export HIVE_MIND_HOME="/home/claude/.hive-mind"
+export SWARM_HOME="/home/claude/.swarm"
+export MEMORY_HOME="/home/claude/.memory"
+
+# Create claude-flow directories in home
+mkdir -p /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
+chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
+
+# ═══════════════════════════════════════════════════════════
+# SETUP CLAUDE FLOW ENVIRONMENT
+# ═══════════════════════════════════════════════════════════
+
+mkdir -p /home/claude/.claude/{docs,scripts,config}
+chown -R claude:claude /home/claude/.claude
+
+# Create Flow-specific documentation
+cat > "/home/claude/.claude/docs/FLOW.md" << 'EOF2'
+# Claude Flow Environment
+
+## Testing Tools
+- `flow-test` - Run Playwright tests
+- `flow-screenshot` - Take screenshots
+- `playwright` - Direct Playwright access
+
+## Browser Automation
+- Chromium, Firefox, WebKit installed
+- Headless and headed modes supported
+- Screenshots and videos available
+
+## Hive-Mine
+- Data mining and analysis tools
+- MCP server integration
+
+## Commands
+- `claude` - Auto-login Claude CLI
+- `ctest` - Test localhost
+- `flow-test` - Run tests
+EOF2
+
+# Create testing scripts
+cat > "/home/claude/.claude/scripts/test-browsers.sh" << 'EOF2'
+#!/bin/bash
+echo "🎭 Testing browser installations..."
+npx playwright --version
+echo "Chromium: $(chromium --version 2>/dev/null || echo 'not found')"
+echo "Firefox: $(firefox --version 2>/dev/null || echo 'not found')"
+EOF2
+
+chmod +x /home/claude/.claude/scripts/test-browsers.sh
+chown -R claude:claude /home/claude/.claude
+
+# ═══════════════════════════════════════════════════════════
+# CLAUDE USER SETUP WITH FLOW FEATURES
+# ═══════════════════════════════════════════════════════════
+
+cat > /home/claude/.bashrc << 'EOF2'
+# Claude Flow Environment
+
+# Basic aliases
+alias ll='ls -la'
+alias ..='cd ..'
+
+# Flow-specific aliases (config handles paths)
+alias flow-test='npx playwright test'
+alias flow-ui='npx playwright test --ui'
+alias flow-debug='npx playwright test --debug'
+alias flow-codegen='npx playwright codegen'
+alias flow-install='npx playwright install'
+alias flow-report='npx playwright show-report'
+
+# Screenshot helper with playwright prefix
+alias flow-screenshot='npx playwright screenshot playwright-results/screenshot-$(date +%Y%m%d-%H%M%S).png'
+
+# Playwright wrapper function
+playwright() {
+    # Let playwright.config.js handle all paths
+    command npx playwright "$@"
+}
+
+# Smart Command Blockers
+alias apk='echo "⚠️  Use the host system for package management!" && false'
+alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
+alias npm='echo "⚠️  Run npm on your host system!" && false'
+alias yarn='echo "⚠️  Run yarn on your host system!" && false'
+alias "git push"='echo "⚠️  Run git push from your host system!" && false'
+
+# Testing shortcuts
+alias ctest='curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"'
+alias browsers='/home/claude/.claude/scripts/test-browsers.sh'
+
+# Smart Claude wrapper - auto-login if needed
+claude() {
+    if [ ! -f ~/.claude.json ] || ! grep -q "oauthAccount" ~/.claude.json 2>/dev/null; then
+        echo "🔐 Not logged in, running claude auth login..."
+        command claude auth login
+    else
+        command claude "$@"
+    fi
+}
+
+# Always in project directory
+cd /var/www/html 2>/dev/null || true
+
+PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+if [ -t 1 ]; then
+    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
+    echo ""
+    echo "🚀 Claude Flow Container Ready"
+    echo "  Working Directory: $(pwd)"
+    echo "  Project Type: $PROJECT_TYPE"
+    echo "  Mode: Testing & Automation"
+    echo "  Commands: flow-test, flow-ui, flow-debug, flow-codegen"
+    echo ""
+fi
+EOF2
+
+chown -R claude:claude /home/claude
+
+# Switch to claude user but STAY in working directory
+cd /var/www/html
+exec su claude -c "exec bash"
 EOF
 
-# Create project-specific docker-compose file
-COMPOSE_FILE="/tmp/claude-flow-${PROJECT_BASE}-compose.yml"
-cat > "$COMPOSE_FILE" << EOF
+    chmod +x /tmp/claude-flow-entrypoint-$$.sh
+
+    # Create override with Flow configuration
+    cat > "docker-compose.override.yml" << EOF
 services:
   claude-flow:
     image: andreashurst/claude-docker:latest-flow
     working_dir: /var/www/html
-
-    ports:
-      - "8080:80"
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    user: "0:0"
 
     volumes:
-      - ${CURRENT_DIR}:/var/www/html:cached
-      - ${MCP_CONFIG_DIR}/claude_desktop_config.json:/home/claude/.config/claude/claude_desktop_config.json:ro
+      - .:/var/www/html
+      - /tmp/claude-flow-entrypoint-$$.sh:/usr/local/bin/custom-entrypoint.sh
 
     environment:
       - NODE_ENV=development
-      - NPM_CONFIG_CACHE=/tmp/npm-cache
-      - CLAUDE_CONFIG_PATH=/home/claude/.config/claude
-      - CLAUDE_PROJECT_PATH=${CURRENT_DIR}
-      - PATH="/home/claude/.deno/bin:\$PATH"
-      - DENO_INSTALL="/home/claude/.deno"
+      - PROJECT_PATH=$CURRENT_DIR
+      - PROJECT_TYPE=$(detect_project_type)
+      - FLOW_MODE=true
       - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
-      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
-      - PROJECT_PATH=${CURRENT_DIR}
-      - ANTHROPIC_API_KEY=${CLAUDECODE_API_KEY:-}
 
     stdin_open: true
     tty: true
-
-    security_opt:
-      - no-new-privileges:true
-
     restart: "no"
-
+    
+    # Higher resource limits for browser automation
     deploy:
       resources:
         limits:
+          memory: 12G     # More memory for browser testing
+          cpus: '6.0'     # More CPU for parallel tests
+        reservations:
           memory: 4G
           cpus: '2.0'
 
+    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
 EOF
 
-# Check if container is already running, if not start it
-if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q claude-flow; then
-    echo "Starting ${COMPOSE_PROJECT_NAME}..."
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
-    # Wait a moment for container to be ready
-    sleep 2
-    # Connect to the running container
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash /usr/local/bin/entrypoint.sh
-else
-    echo "Container ${COMPOSE_PROJECT_NAME} already running..."
-    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec claude-flow bash
-fi
+    echo "Created claude-flow configuration"
 
-# Note: Temporary files are cleaned up when script exits
-# Container continues running in the background
+    # Create README for Flow
+    cat > "README-Claude-Flow.md" << EOF
+# Claude Flow Environment
+
+## Features:
+- 🎭 Playwright for browser automation
+- 🔬 Hive-Mine for data analysis
+- 🧪 Advanced testing capabilities
+- 🚀 All Claude Dev features included
+
+## Quick Start:
+\`\`\`bash
+flow-test          # Run Playwright tests
+flow-ui            # Open test UI
+flow-debug         # Debug mode
+flow-codegen       # Generate test code
+\`\`\`
+
+## Testing localhost:
+- \`curl localhost\` - Works automatically
+- \`ctest\` - Quick test
+
+## First time setup:
+1. \`claude auth login\` (if needed)
+2. \`flow-install\` to setup browsers
+EOF
+
+    grep -q "^docker-compose\.override\.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
+}
+
+# Main function
+main() {
+    echo "🚀 Claude Flow Installer v$VERSION"
+    echo "===================================="
+    echo "Advanced testing & automation environment"
+    echo ""
+
+    create_files
+
+    echo "Starting containers..."
+    docker compose down 2>/dev/null || true
+    docker compose up -d
+
+    sleep 3
+
+    if docker compose ps "claude-flow" 2>/dev/null | grep -q "Up"; then
+        echo "✅ Container started successfully!"
+        
+        copy_credentials_to_container
+        
+        echo "🔗 Connecting to Claude Flow container..."
+        docker compose exec claude-flow bash
+        
+        copy_credentials_from_container
+        echo "✅ Session ended, credentials saved"
+    else
+        echo "Failed to start. Check logs:"
+        docker compose logs claude-flow
+        exit 1
+    fi
+}
+
+# Handle arguments
+case "${1:-}" in
+    -v|--version) echo "v$VERSION"; exit 0 ;;
+    --stop) docker compose stop claude-flow; exit 0 ;;
+    --clean) docker compose down; rm -f docker-compose.override.yml README-Claude-Flow.md; exit 0 ;;
+    -h|--help) 
+        echo "Claude Flow - Advanced Testing Environment"
+        echo "Usage: $0 [--version|--stop|--clean|--help]"
+        echo ""
+        echo "Options:"
+        echo "  --version  Show version"
+        echo "  --stop     Stop container"  
+        echo "  --clean    Remove all Flow files"
+        echo "  --help     Show this help"
+        exit 0 
+        ;;
+    "") main ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+esac

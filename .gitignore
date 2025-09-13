@@ -1,1 +1,20 @@
+# IDE
 .idea
+
+# Claude
+.claude
+
+# Docker overrides
+docker-compose.override.yml
+
+# Playwright test directories
+playwright-*
+
+# Claude Flow directories (if created locally)
+.claude-flow
+.hive-mind
+.swarm
+.memory
+
+# MacOS
+.DS_Store
