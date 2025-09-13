@@ -36,9 +36,10 @@ main() {
     check_docker
     install_commands
     pull_images
-    hash -d claude-dev
-    hash -d claude-dev
-    log_success "Installation completed successfully!"
+    hash -d claude-dev 2>/dev/null || true
+    hash -d claude-flow 2>/dev/null || true
+    
+    echo "✅ Installation completed successfully!"
     echo ""
     echo "🎯 Usage:"
     echo "  claude-dev    # Basic Claude Code environment"

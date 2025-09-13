@@ -1,0 +1,99 @@
+# Claude Flow - Built on top of Claude Dev
+FROM andreashurst/claude-docker:latest-dev
+
+# Switch to root for installations
+USER root
+
+# Install Python and build tools (needed for Hive-Mine and other tools)
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    gcc \
+    g++ \
+    musl-dev \
+    linux-headers \
+    chromium \
+    chromium-chromedriver \
+    firefox \
+    && rm -rf /var/cache/apk/*
+
+# Install Playwright properly (both as package and CLI)
+RUN npm install -g playwright@latest @playwright/test && \
+    npx -y playwright install chromium firefox webkit && \
+    npx -y playwright install-deps || true
+
+# Create playwright wrapper to handle both npx and direct calls
+RUN echo '#!/bin/bash\n\
+# Playwright wrapper that works for both "playwright" and "npx playwright"\n\
+if [ "$1" = "playwright" ]; then\n\
+    shift\n\
+fi\n\
+exec /usr/local/lib/node_modules/playwright/cli.js "$@"' > /usr/local/bin/playwright && \
+    chmod +x /usr/local/bin/playwright
+
+# Also create npx wrapper for consistency
+RUN echo '#!/bin/bash\n\
+# NPX wrapper that ensures playwright works\n\
+if [ "$1" = "playwright" ]; then\n\
+    shift\n\
+    exec /usr/local/bin/playwright "$@"\n\
+else\n\
+    exec /usr/local/bin/npx.real "$@"\n\
+fi' > /usr/local/bin/npx-wrapper && \
+    mv /usr/local/bin/npx /usr/local/bin/npx.real && \
+    mv /usr/local/bin/npx-wrapper /usr/local/bin/npx && \
+    chmod +x /usr/local/bin/npx
+
+# Install additional Flow-specific tools
+RUN npm install -g \
+    @playwright/mcp \
+    @modelcontextprotocol/server-filesystem \
+    claude-flow@latest || true
+
+# Install Python MCP servers
+RUN pip3 install --break-system-packages \
+    mcp-server-git \
+    hive-mine || true
+
+# Install Deno for additional scripting capabilities
+RUN curl -fsSL https://deno.land/install.sh | sh && \
+    mv /root/.deno /usr/local/deno && \
+    ln -s /usr/local/deno/bin/deno /usr/local/bin/deno
+
+# Create Playwright cache directory
+RUN mkdir -p /home/claude/.cache/ms-playwright && \
+    chown -R claude:claude /home/claude/.cache/ms-playwright
+
+# Flow scripts and docs will be created by entrypoint
+# No static files needed
+
+# Environment variables for Flow
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    DENO_INSTALL="/usr/local/deno" \
+    PATH="/usr/local/deno/bin:$PATH" \
+    FLOW_MODE=true
+
+# Create helper scripts for Flow
+RUN cat > /usr/local/bin/flow-test << 'EOF'
+#!/bin/bash
+echo "🎭 Running Playwright tests..."
+if [ -f "playwright.config.js" ] || [ -f "playwright.config.ts" ]; then
+    npx playwright test "$@"
+else
+    echo "No playwright.config found. Create one first!"
+fi
+EOF
+
+RUN cat > /usr/local/bin/flow-screenshot << 'EOF'
+#!/bin/bash
+echo "📸 Taking screenshot..."
+npx playwright screenshot "$@"
+EOF
+
+RUN chmod +x /usr/local/bin/flow-test /usr/local/bin/flow-screenshot
+
+# Keep working directory
+WORKDIR /var/www/html
+
+# Note: We don't set ENTRYPOINT here as claude-flow script will handle it
