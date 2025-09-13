@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Claude Docker Universal Installer v3.2.0 - KISS Edition  
+# Claude Docker Universal Installer v3.2.0 - KISS Edition
 # Last updated: 2025-01-13
 
 set -e
@@ -17,144 +17,36 @@ CURRENT_DIR=$(pwd)
 # Create compose files
 create_files() {
     # Create base docker-compose.yml if needed
-    echo "DEBUG: Creating base compose..."
     claude_docker_create_base_compose
-    
+
     # Ask about override
-    echo "DEBUG: Checking override..."
     claude_docker_ask_replace_override || return 0
-    echo "DEBUG: Creating override file..."
 
-    # Create custom entrypoint
-    cat > "/tmp/claude-entrypoint-$$.sh" << EOF
-#!/bin/bash
+    # Create custom entrypoint using shared library
+    local ENTRYPOINT_FILE="/tmp/claude-entrypoint-$$.sh"
+    claude_docker_create_entrypoint "dev" "$ENTRYPOINT_FILE"
 
-# Claude Dev Container Entrypoint - KISS Edition
-ROOT="/var/www/html"
-
-# Localhost mapping
-$(claude_docker_create_localhost_mapping)
-
-# Environment setup  
-$(claude_docker_create_base_environment)
-
-# PHP fix for Alpine
-[ -f /usr/bin/php83 ] && ln -sf /usr/bin/php83 /usr/bin/php 2>/dev/null || true
-
-# Setup claude environment
-mkdir -p /home/claude/.claude/{docs,scripts,config}
-
-# Handle credentials - if mounted or copied, ensure claude owns them
-if [ -f /home/claude/.claude.json ]; then
-    chown claude:claude /home/claude/.claude.json
-    echo "✅ Claude credentials found and owned by claude user"
-fi
-
-chown -R claude:claude /home/claude/.claude
-
-# Create command scripts (blockers and helpers)
-claude_docker_create_command_scripts
-
-# Create .bashrc for claude user
-cat > /home/claude/.bashrc << 'EOF2'
-# Ensure PATH includes npm global bin
-export PATH="/usr/local/bin:\$PATH"
-# Claude Dev Environment
-$(claude_docker_create_common_aliases)
-$(claude_docker_create_claude_wrapper)
-
-# Project detection
-cd /var/www/html 2>/dev/null || true
-# Set prompt - shows claude@dev
-PS1='\\[\\033[01;32m\\]claude@dev\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '
-
-if [ -t 1 ]; then
-    PROJECT_TYPE="\${PROJECT_TYPE:-unknown}"
-    echo ""
-    echo "Claude Development Environment"
-    echo "  Working Directory: \$(pwd)"
-    echo "  Project Type: \$PROJECT_TYPE"
-    echo ""
-    
-    # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:\$PATH"
-    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
-        echo "🚀 Starting Claude..."
-        exec claude
-    else
-        echo "🔐 No credentials found - starting authentication..."
-        claude auth login
-        # After login, start claude
-        exec claude
-    fi
-fi
-EOF2
-
-chown -R claude:claude /home/claude
-
-# Also set root prompt in case someone execs as root
-echo 'PS1="\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
-
-cd /var/www/html
-exec su - claude -c "cd /var/www/html && exec bash"
-EOF
-
-    chmod +x /tmp/claude-entrypoint-$$.sh
-    
-    # Create docker-compose.override.yml
-    cat > "docker-compose.override.yml" << EOF
-services:
-  $CONTAINER_NAME:
-    image: andreashurst/claude-docker:latest-dev
-    working_dir: /var/www/html
-    user: "0:0"
-    
-    volumes:
-      - .:/var/www/html
-      - /tmp/claude-entrypoint-$$.sh:/usr/local/bin/custom-entrypoint.sh
-    
-    environment:
-      - NODE_ENV=development
-      - PROJECT_PATH=$CURRENT_DIR
-      - PROJECT_TYPE=$(claude_docker_detect_project)
-    
-    stdin_open: true
-    tty: true
-    restart: "no"
-    
-    # MacBook Pro optimized resources
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-          cpus: '4.0'
-        reservations:
-          memory: 2G
-          cpus: '1.0'
-    
-    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
-EOF
-
-    echo "Created claude-dev configuration"
+    # Create docker-compose.override.yml using library
+    claude_docker_create_override "dev" "$ENTRYPOINT_FILE" "$CURRENT_DIR"
 
     claude_docker_update_gitignore
 }
 
 # Main function
 main() {
-    echo "Claude Docker Installer v$VERSION"
-    echo "================================="
-    
-    echo "DEBUG: Checking Docker..."
+    echo "Claude Docker v$VERSION"
+    echo "========================"
+
     claude_docker_check
-    echo "DEBUG: Docker check passed"
     
-    echo "DEBUG: Creating files..."
-    create_files
-    echo "DEBUG: Files created"
-    
-    echo "DEBUG: Starting container..."
-    claude_docker_start_and_connect "$CONTAINER_NAME"
+    # If container is already running, just connect
+    if claude_docker_is_running "$CONTAINER_NAME"; then
+        echo "✅ Container already running!"
+        claude_docker_just_connect "$CONTAINER_NAME"
+    else
+        create_files
+        claude_docker_start_and_connect "$CONTAINER_NAME"
+    fi
 }
 
 # Handle arguments
@@ -162,7 +54,7 @@ case "${1:-}" in
     -v|--version) echo "v$VERSION"; exit 0 ;;
     --stop) docker compose stop $CONTAINER_NAME; exit 0 ;;
     --clean) docker compose down; rm -f docker-compose.override.yml; exit 0 ;;
-    --root) 
+    --root)
         echo "🔐 Starting as root (backdoor mode)..."
         claude_docker_check
         create_files
@@ -178,10 +70,10 @@ case "${1:-}" in
             exit 1
         fi
         ;;
-    -h|--help) 
+    -h|--help)
         echo "Usage: $0 [--version|--stop|--clean|--root|--help]"
         echo "  --root    Start with root access (backdoor)"
-        exit 0 
+        exit 0
         ;;
     "") main ;;
     *) echo "Unknown option: $1"; exit 1 ;;

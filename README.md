@@ -36,8 +36,8 @@ Advanced testing environment with Playwright and browser automation.
 
 ```bash
 claude-flow         # Start with testing tools
-flow-test          # Run Playwright tests
-flow-screenshot    # Take screenshots
+playwright test    # Run Playwright tests
+playwright codegen # Generate test code
 ```
 
 ## How It Works

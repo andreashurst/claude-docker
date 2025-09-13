@@ -1,6 +1,6 @@
 # Claude Docker Session Context - IMPORTANT CHANGES MADE
 
-## Session Date: 2025-09-13
+## Session Date: 2025-09-13 (UPDATED)
 
 ## What We Fixed Today:
 
@@ -8,7 +8,8 @@
 - **Problem**: Typo3 only accepts "localhost" in site config, not host.docker.internal
 - **Solution**: Modified `/bin/claude-docker.lib.sh` to ALWAYS map localhost to Docker host IP
 - **Location**: Lines 139-164 in `claude_docker_create_localhost_mapping()`
-- **Key Point**: Uses gateway IP, removes 127.0.0.1 entry, maps localhost to host
+- **Key Point**: Uses gateway IP, removes ALL localhost entries to prevent duplicates, maps localhost to host
+- **UPDATED**: Fixed duplicate localhost entries with better sed commands (lines 152-154)
 
 ### 2. ✅ User Prompt Display  
 - **Problem**: Prompt didn't show correct user (claude@dev or root@dev)
@@ -29,10 +30,11 @@
 - **No mounts**: Per your requirement - no volume mounts for credentials
 - **Auto-handling**: Copies on start, saves on exit
 
-### 5. ✅ Root Backdoor Added
-- **Normal**: `claude-dev` or `claude-flow` - runs as claude user
+### 5. ✅ Root Backdoor Added (FIXED!)
+- **Normal**: `claude-dev` or `claude-flow` - runs as claude user (FIXED in line 293 with `-u claude`)
 - **Backdoor**: `claude-dev --root` or `claude-flow --root` - runs as root
 - **Security**: Default is secure (claude user), root only when explicitly requested
+- **FIXED**: Added `-u claude` to docker compose exec in library line 293
 
 ### 6. ✅ Auto-start Claude on Login
 - **With credentials**: Automatically starts claude

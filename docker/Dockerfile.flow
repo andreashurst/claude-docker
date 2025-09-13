@@ -22,35 +22,19 @@ RUN npm install -g playwright@latest @playwright/test && \
     # Fix npm global binaries to be accessible
     echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/profile && \
     echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/bash.bashrc && \
-    npx -y playwright install chromium firefox webkit && \
-    npx -y playwright install-deps || true
+    playwright install chromium firefox webkit && \
+    playwright install-deps || true
 
-# Create playwright wrapper to handle both npx and direct calls
-RUN echo '#!/bin/bash\n\
-# Playwright wrapper that works for both "playwright" and "npx playwright"\n\
-if [ "$1" = "playwright" ]; then\n\
-    shift\n\
-fi\n\
-exec /usr/local/lib/node_modules/playwright/cli.js "$@"' > /usr/local/bin/playwright && \
-    chmod +x /usr/local/bin/playwright
+# Playwright is installed globally and available as direct command
+# No wrappers needed since npm install -g creates the binary
 
-# Also create npx wrapper for consistency
-RUN echo '#!/bin/bash\n\
-# NPX wrapper that ensures playwright works\n\
-if [ "$1" = "playwright" ]; then\n\
-    shift\n\
-    exec /usr/local/bin/playwright "$@"\n\
-else\n\
-    exec /usr/local/bin/npx.real "$@"\n\
-fi' > /usr/local/bin/npx-wrapper && \
-    mv /usr/local/bin/npx /usr/local/bin/npx.real && \
-    mv /usr/local/bin/npx-wrapper /usr/local/bin/npx && \
-    chmod +x /usr/local/bin/npx
-
-# Install additional Flow-specific tools
+# Install additional Flow-specific tools and MCP servers
 RUN npm install -g \
     @playwright/mcp \
     @modelcontextprotocol/server-filesystem \
+    @modelcontextprotocol/server-memory \
+    @modelcontextprotocol/server-sqlite \
+    @modelcontextprotocol/server-git \
     claude-flow@latest || true && \
     # Create symlinks for all claude-flow related commands
     ln -sf $(npm config get prefix)/bin/claude-flow /usr/local/bin/claude-flow 2>/dev/null || true && \
@@ -81,24 +65,12 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
     PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:/usr/local/deno/bin:$PATH" \
     FLOW_MODE=true
 
-# Create helper scripts for Flow
-RUN cat > /usr/local/bin/flow-test << 'EOF'
-#!/bin/bash
-echo "🎭 Running Playwright tests..."
-if [ -f "playwright.config.js" ] || [ -f "playwright.config.ts" ]; then
-    npx playwright test "$@"
-else
-    echo "No playwright.config found. Create one first!"
-fi
-EOF
-
-RUN cat > /usr/local/bin/flow-screenshot << 'EOF'
-#!/bin/bash
-echo "📸 Taking screenshot..."
-npx playwright screenshot "$@"
-EOF
-
-RUN chmod +x /usr/local/bin/flow-test /usr/local/bin/flow-screenshot
+# No custom flow-* commands needed
+# Claude Code knows standard commands like:
+# - playwright test
+# - playwright show-report  
+# - playwright codegen
+# - playwright install
 
 # Keep working directory
 WORKDIR /var/www/html

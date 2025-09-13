@@ -46,18 +46,15 @@ RUN apk update && apk upgrade && \
     optipng \
     && rm -rf /var/cache/apk/*
 
-# Install additional package managers and create fake commands
+# Install additional package managers and MCP servers
 RUN npm install -g pnpm yarn bun && \
     pip3 install --break-system-packages pipenv poetry && \
-    # Create fake commands that Claude expects on a normal host
-    echo '#!/bin/sh\necho "brew: simulated (all packages pre-installed)"' > /usr/local/bin/brew && \
-    echo '#!/bin/sh\necho "systemctl: service running (simulated)"' > /usr/local/bin/systemctl && \
-    echo '#!/bin/sh\necho "apt: simulated (all packages pre-installed)"' > /usr/local/bin/apt && \
-    echo '#!/bin/sh\necho "apt-get: simulated (all packages pre-installed)"' > /usr/local/bin/apt-get && \
-    echo '#!/bin/sh\necho "ssh: localhost only (no external servers)"' > /usr/local/bin/ssh && \
-    echo '#!/bin/sh\necho "service: all services running"' > /usr/local/bin/service && \
-    chmod +x /usr/local/bin/brew /usr/local/bin/systemctl /usr/local/bin/apt /usr/local/bin/apt-get /usr/local/bin/ssh /usr/local/bin/service && \
-    # Create composer for PHP
+    # Install MCP servers for Claude
+    npm install -g @modelcontextprotocol/server-filesystem \
+                   @modelcontextprotocol/server-memory \
+                   @modelcontextprotocol/server-sqlite \
+                   @modelcontextprotocol/server-git && \
+    # Install composer for PHP
     wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
     chmod +x /usr/local/bin/composer
 

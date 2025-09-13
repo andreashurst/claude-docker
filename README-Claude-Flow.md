@@ -8,10 +8,10 @@
 
 ## Quick Start:
 ```bash
-flow-test          # Run Playwright tests
-flow-ui            # Open test UI
-flow-debug         # Debug mode
-flow-codegen       # Generate test code
+playwright test          # Run Playwright tests
+playwright test --ui    # Open test UI
+playwright test --debug # Debug mode
+playwright codegen      # Generate test code
 ```
 
 ## Testing localhost:
@@ -20,4 +20,4 @@ flow-codegen       # Generate test code
 
 ## First time setup:
 1. `claude auth login` (if needed)
-2. `flow-install` to setup browsers
+2. `playwright install` to setup browsers

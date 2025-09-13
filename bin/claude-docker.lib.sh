@@ -26,7 +26,7 @@ claude_docker_detect_webserver() {
 # Detect project type
 claude_docker_detect_project() {
     local project_type="generic"
-    
+
     # Node/JavaScript projects
     if [ -f "package.json" ]; then
         if [ -f "next.config.js" ] || [ -f "next.config.mjs" ]; then
@@ -68,7 +68,7 @@ claude_docker_detect_project() {
     elif [ -f "Cargo.toml" ]; then
         project_type="rust"
     fi
-    
+
     echo "$project_type"
 }
 
@@ -76,7 +76,7 @@ claude_docker_detect_project() {
 claude_docker_copy_credentials_to() {
     local container_name="$1"
     local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
-    
+
     if [ -f "$HOST_CLAUDE_DOCKER" ]; then
         echo "📥 Copying Claude Docker credentials to container..."
         docker compose cp "$HOST_CLAUDE_DOCKER" "$container_name:/home/claude/.claude.json" 2>/dev/null || true
@@ -85,17 +85,14 @@ claude_docker_copy_credentials_to() {
     else
         echo "ℹ️  No Claude Docker credentials found"
         echo "🔐 Starting automatic login..."
-        docker compose exec -T "$container_name" bash -c "export PATH=/usr/local/bin:\$PATH && su claude -c 'claude auth login'" || {
-            echo "⚠️  Auto-login failed. Please run 'claude auth login' manually in container"
-        }
     fi
 }
 
-# Copy credentials from container  
+# Copy credentials from container
 claude_docker_copy_credentials_from() {
     local container_name="$1"
     local HOST_CLAUDE_DOCKER="$HOME/.claude.docker.json"
-    
+
     echo "📤 Saving Claude Docker credentials..."
     docker compose cp "$container_name:/home/claude/.claude.json" "$HOST_CLAUDE_DOCKER" 2>/dev/null && \
         echo "✅ Credentials saved to $HOST_CLAUDE_DOCKER" || \
@@ -149,10 +146,11 @@ echo "🔧 Setting up localhost mapping..."
 HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Remove existing 127.0.0.1 localhost entry
-    sed -i '/^127\.0\.0\.1[[:space:]]*localhost/d' /etc/hosts
-    
-    # Map localhost to Docker host
+    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
+    sed -i '/[[:space:]]localhost/d' /etc/hosts
+    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+
+    # Map localhost to Docker host (single entry)
     echo "$HOST_IP localhost" >> /etc/hosts
     echo "✅ Mapped localhost to Docker host ($HOST_IP)"
     echo "   Now 'curl localhost:PORT' reaches your host machine"
@@ -173,6 +171,7 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 EOF
 }
+
 
 # Create command blocker scripts and helper commands
 claude_docker_create_command_scripts() {
@@ -215,14 +214,14 @@ echo "⚠️  Use the host system for package management!"
 exit 1
 BLOCKER
     chmod +x /usr/local/bin/apk
-    
+
     # Create ctest helper
     cat > /usr/local/bin/ctest << 'HELPER'
 #!/bin/sh
 curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"
 HELPER
     chmod +x /usr/local/bin/ctest
-    
+
     # Create ll helper
     cat > /usr/local/bin/ll << 'HELPER'
 #!/bin/sh
@@ -243,21 +242,6 @@ alias git='echo "⚠️  Run git from your host system!" && false'
 EOF
 }
 
-# Create smart claude wrapper
-claude_docker_create_claude_wrapper() {
-    cat << 'EOF'
-# Smart Claude wrapper - auto-login if needed
-claude() {
-    if [ ! -f ~/.claude.json ] || ! grep -q "oauthAccount" ~/.claude.json 2>/dev/null; then
-        echo "🔐 Not logged in, running claude auth login..."
-        command claude auth login
-    else
-        command claude "$@"
-    fi
-}
-EOF
-}
-
 # Create common aliases
 claude_docker_create_common_aliases() {
     cat << 'EOF'
@@ -272,29 +256,349 @@ claude_docker_update_gitignore() {
     grep -q "^docker-compose\.override\.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
 }
 
+# Create docker-compose.override.yml
+claude_docker_create_override() {
+    local ENV_TYPE="$1"  # "dev" or "flow"
+    local ENTRYPOINT_FILE="$2"
+    local CURRENT_DIR="$3"
+    
+    local CONTAINER_NAME="claude-$ENV_TYPE"
+    local IMAGE_TAG="latest-$ENV_TYPE"
+    
+    # Set resource limits based on environment type
+    if [ "$ENV_TYPE" = "flow" ]; then
+        local MEMORY_LIMIT="12G"
+        local CPU_LIMIT="6.0"
+        local MEMORY_RESERVE="4G"
+        local CPU_RESERVE="2.0"
+        local EXTRA_ENV="      - FLOW_MODE=true
+      - PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright"
+    else
+        local MEMORY_LIMIT="8G"
+        local CPU_LIMIT="4.0"
+        local MEMORY_RESERVE="2G"
+        local CPU_RESERVE="1.0"
+        local EXTRA_ENV=""
+    fi
+    
+    cat > "docker-compose.override.yml" << EOF
+services:
+  $CONTAINER_NAME:
+    image: andreashurst/claude-docker:$IMAGE_TAG
+    working_dir: /var/www/html
+    user: "0:0"
+
+    volumes:
+      - .:/var/www/html
+      - $ENTRYPOINT_FILE:/usr/local/bin/custom-entrypoint.sh
+
+    environment:
+      - NODE_ENV=development
+      - PROJECT_PATH=$CURRENT_DIR
+      - PROJECT_TYPE=$(claude_docker_detect_project)
+$EXTRA_ENV
+
+    stdin_open: true
+    tty: true
+    restart: "no"
+
+    deploy:
+      resources:
+        limits:
+          memory: $MEMORY_LIMIT
+          cpus: '$CPU_LIMIT'
+        reservations:
+          memory: $MEMORY_RESERVE
+          cpus: '$CPU_RESERVE'
+
+    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+EOF
+    
+    echo "Created $CONTAINER_NAME configuration"
+}
+
+# Create flow-specific environment variables
+claude_docker_create_flow_environment() {
+    cat << 'EOF'
+# Playwright specific settings
+export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+export FLOW_MODE=true
+export PLAYWRIGHT_SCREENSHOTS_DIR="/var/www/html/playwright-results"
+export PLAYWRIGHT_TEST_OUTPUT_DIR="/var/www/html/playwright-results"
+export PLAYWRIGHT_HTML_REPORT="/var/www/html/playwright-report"
+
+# Claude-flow directories in home (not in project!)
+export CLAUDE_FLOW_HOME="/home/claude/.claude-flow"
+export HIVE_MIND_HOME="/home/claude/.hive-mind"
+export SWARM_HOME="/home/claude/.swarm"
+export MEMORY_HOME="/home/claude/.memory"
+
+# Create claude-flow directories in home
+mkdir -p /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
+chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
+EOF
+}
+
+# Create MCP configuration for Claude
+claude_docker_create_mcp_config() {
+    cat << 'EOF'
+# Create MCP configuration
+mkdir -p /home/claude/.config/claude
+cat > "/home/claude/.config/claude/claude_desktop_config.json" << 'MCPCONFIG'
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-server-filesystem",
+      "args": ["/var/www/html"]
+    },
+    "memory": {
+      "command": "mcp-server-memory",
+      "args": []
+    },
+    "git": {
+      "command": "mcp-server-git", 
+      "args": ["--repository", "/var/www/html"]
+    },
+    "sqlite": {
+      "command": "mcp-server-sqlite",
+      "args": ["--data-dir", "/home/claude/.claude/databases"]
+    }
+  }
+}
+MCPCONFIG
+chown -R claude:claude /home/claude/.config
+EOF
+}
+
+# Create flow-specific scripts and tools
+claude_docker_create_flow_scripts() {
+    cat << 'EOF'
+# Create Flow-specific documentation
+cat > "/home/claude/.claude/docs/FLOW.md" << 'EOF2'
+# Claude Flow Environment
+
+## Testing Tools
+- `playwright test` - Run Playwright tests
+- `playwright` - Direct Playwright access
+
+## Browser Automation
+- Chromium, Firefox, WebKit installed
+- Headless and headed modes supported
+- Screenshots and videos available
+
+## Hive-Mine
+- Data mining and analysis tools
+- MCP server integration
+
+## Commands
+- `playwright test` - Run tests
+EOF2
+
+# Create testing scripts
+cat > "/home/claude/.claude/scripts/test-browsers.sh" << 'EOF2'
+#!/bin/bash
+echo "🎭 Testing browser installations..."
+playwright --version
+echo "Chromium: $(chromium --version 2>/dev/null || echo 'not found')"
+echo "Firefox: $(firefox --version 2>/dev/null || echo 'not found')"
+EOF2
+
+chmod +x /home/claude/.claude/scripts/test-browsers.sh
+chown -R claude:claude /home/claude/.claude
+
+# Playwright is already installed globally in the container
+# No need for wrapper - it's available as direct command
+EOF
+}
+
+# Create entrypoint script for dev or flow environment
+claude_docker_create_entrypoint() {
+    local ENV_TYPE="$1"  # "dev" or "flow"
+    local OUTPUT_FILE="$2"
+    
+    cat > "$OUTPUT_FILE" << EOF
+#!/bin/bash
+
+# Claude $ENV_TYPE Container Entrypoint
+ROOT="/var/www/html"
+
+# Localhost mapping
+$(claude_docker_create_localhost_mapping)
+
+# Environment setup
+$(claude_docker_create_base_environment)
+
+# PHP fix for Alpine
+[ -f /usr/bin/php83 ] && ln -sf /usr/bin/php83 /usr/bin/php 2>/dev/null || true
+EOF
+    
+    # Add flow-specific environment if needed
+    if [ "$ENV_TYPE" = "flow" ]; then
+        cat >> "$OUTPUT_FILE" << EOF
+# Flow-specific environment
+$(claude_docker_create_flow_environment)
+EOF
+    fi
+    
+    cat >> "$OUTPUT_FILE" << EOF
+# Setup claude environment
+mkdir -p /home/claude/.claude/{docs,scripts,config}
+
+# Handle credentials - if mounted or copied, ensure claude owns them
+if [ -f /home/claude/.claude.json ]; then
+    chown claude:claude /home/claude/.claude.json
+    echo "✅ Claude credentials found and owned by claude user"
+fi
+
+chown -R claude:claude /home/claude/.claude
+
+# Create command scripts (blockers and helpers)
+$(claude_docker_create_command_scripts)
+
+# Setup MCP configuration for Claude
+$(claude_docker_create_mcp_config)
+EOF
+    
+    # Add flow-specific scripts if needed
+    if [ "$ENV_TYPE" = "flow" ]; then
+        cat >> "$OUTPUT_FILE" << EOF
+# Flow-specific scripts and tools
+$(claude_docker_create_flow_scripts)
+EOF
+    fi
+    
+    cat >> "$OUTPUT_FILE" << EOF
+
+# Create .bashrc for claude user
+cat > /home/claude/.bashrc << 'EOF2'
+# Ensure PATH includes npm global bin
+export PATH="/usr/local/bin:\$PATH"
+# Claude $ENV_TYPE Environment
+$(claude_docker_create_common_aliases)
+
+# Command blockers to prevent accidental project modifications
+$(claude_docker_create_command_blockers)
+
+# Project detection
+cd /var/www/html 2>/dev/null || true
+EOF
+
+    # Add environment-specific prompt and content
+    if [ "$ENV_TYPE" = "flow" ]; then
+        cat >> "$OUTPUT_FILE" << 'EOF'
+# Set prompt - shows claude@flow
+PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+if [ -t 1 ]; then
+    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
+    echo ""
+    echo "Claude Flow Environment"
+    echo "  Working Directory: $(pwd)"
+    echo "  Project Type: $PROJECT_TYPE"
+    echo ""
+
+    # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:$PATH"
+    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
+        echo "🚀 Starting Claude..."
+        exec claude
+    else
+        echo "🔐 No credentials found - starting authentication..."
+        exec claude
+    fi
+fi
+EOF2
+
+chown -R claude:claude /home/claude
+
+# Also set root prompt in case someone execs as root
+echo 'PS1="\[\033[01;31m\]root@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
+EOF
+    else
+        cat >> "$OUTPUT_FILE" << 'EOF'
+# Set prompt - shows claude@dev
+PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+if [ -t 1 ]; then
+    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
+    echo ""
+    echo "Claude Development Environment"
+    echo "  Working Directory: $(pwd)"
+    echo "  Project Type: $PROJECT_TYPE"
+    echo ""
+
+    # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:$PATH"
+    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
+        echo "🚀 Starting Claude..."
+        exec claude
+    else
+        echo "🔐 No credentials found - starting authentication..."
+        exec claude
+    fi
+fi
+EOF2
+
+chown -R claude:claude /home/claude
+
+# Also set root prompt in case someone execs as root
+echo 'PS1="\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
+EOF
+    fi
+    
+    cat >> "$OUTPUT_FILE" << 'EOF'
+
+cd /var/www/html
+exec su - claude -c "cd /var/www/html && exec bash"
+EOF
+    
+    chmod +x "$OUTPUT_FILE"
+}
+
+# Check if container is already running
+claude_docker_is_running() {
+    local container_name="$1"
+    docker compose ps "$container_name" 2>/dev/null | grep -q "Up"
+}
+
+# Just connect to existing container
+claude_docker_just_connect() {
+    local container_name="$1"
+    echo "🔗 Connecting to existing $container_name container..."
+    docker compose exec -u claude "$container_name" bash
+    claude_docker_copy_credentials_from "$container_name"
+    echo "✅ Session ended"
+}
+
 # Start container with connection
 claude_docker_start_and_connect() {
     local container_name="$1"
-    
-    echo "Starting containers..."
-    docker compose down 2>/dev/null || true
-    docker compose up -d
-    
-    sleep 3
-    
-    if docker compose ps "$container_name" 2>/dev/null | grep -q "Up"; then
-        echo "✅ Container started successfully!"
-        
-        claude_docker_copy_credentials_to "$container_name"
-        
-        echo "🔗 Connecting to $container_name container..."
-        docker compose exec "$container_name" bash
-        
-        claude_docker_copy_credentials_from "$container_name"
-        echo "✅ Session ended, credentials saved"
+
+    # Check if container is already running
+    if claude_docker_is_running "$container_name"; then
+        echo "✅ Container already running!"
+        claude_docker_just_connect "$container_name"
     else
-        echo "Failed to start. Check logs:"
-        docker compose logs "$container_name"
-        exit 1
+        echo "Starting containers..."
+        docker compose down 2>/dev/null || true
+        docker compose up -d
+
+        sleep 3
+
+        if docker compose ps "$container_name" 2>/dev/null | grep -q "Up"; then
+            echo "✅ Container started successfully!"
+
+            claude_docker_copy_credentials_to "$container_name"
+
+            echo "🔗 Connecting to $container_name container as claude user..."
+            docker compose exec -u claude "$container_name" bash
+
+            claude_docker_copy_credentials_from "$container_name"
+            echo "✅ Session ended, credentials saved"
+        else
+            echo "Failed to start. Check logs:"
+            docker compose logs "$container_name"
+            exit 1
+        fi
     fi
 }
