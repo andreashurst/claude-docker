@@ -248,7 +248,7 @@ MCPEOF
     cat > "/tmp/claude-flow-entrypoint-$$.sh" << 'EOF'
 #!/bin/bash
 
-# Claude Flow Container Entrypoint
+# Claude Flow Environment Entrypoint
 # Advanced testing environment with Playwright and automation tools
 
 ROOT="/var/www/html"
@@ -382,7 +382,7 @@ PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 if [ -t 1 ]; then
     PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
     echo ""
-    echo "🚀 Claude Flow Container Ready"
+    echo "🚀 Claude Flow Environment Ready"
     echo "  Working Directory: $(pwd)"
     echo "  Project Type: $PROJECT_TYPE"
     echo "  Mode: Testing & Automation"

@@ -71,10 +71,9 @@ PS1='\\[\\033[01;32m\\]claude@dev\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[0
 if [ -t 1 ]; then
     PROJECT_TYPE="\${PROJECT_TYPE:-unknown}"
     echo ""
-    echo "Claude Dev Container Ready"
+    echo "Claude Development Environment"
     echo "  Working Directory: \$(pwd)"
     echo "  Project Type: \$PROJECT_TYPE"
-    echo "  Test localhost: ctest"
     echo ""
     
     # Auto-start claude based on credentials
