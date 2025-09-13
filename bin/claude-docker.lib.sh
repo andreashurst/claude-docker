@@ -126,6 +126,7 @@ EOF
 # Ask to replace override file
 claude_docker_ask_replace_override() {
     if [ -f "docker-compose.override.yml" ]; then
+        echo "XXXXXXXX"
         read -p "Replace existing docker-compose.override.yml? (y/N): " -n 1 -r
         echo
         [[ ! $REPLY =~ ^[Yy]$ ]] && return 1
@@ -174,65 +175,69 @@ EOF
 
 
 # Create command blocker scripts and helper commands
-claude_docker_create_command_scripts() {
-    # Create git blocker
-    cat > /usr/local/bin/git << 'BLOCKER'
+claude_docker_create_command_blocker() {
+    cat << 'EOF'
+echo "✅ Install Bin Blocker"
+# Create git blocker
+cat > /usr/local/bin/git << 'BLOCKER'
 #!/bin/sh
 echo "⚠️  Run git from your host system!"
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/git
+chmod +x /usr/local/bin/git
 
-    # Create npm blocker
-    cat > /usr/local/bin/npm << 'BLOCKER'
+# Create npm blocker
+cat > /usr/local/bin/npm << 'BLOCKER'
 #!/bin/sh
 echo "⚠️  Run npm on your host system!"
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/npm
+chmod +x /usr/local/bin/npm
 
-    # Create yarn blocker
-    cat > /usr/local/bin/yarn << 'BLOCKER'
+# Create yarn blocker
+cat > /usr/local/bin/yarn << 'BLOCKER'
 #!/bin/sh
 echo "⚠️  Run yarn on your host system!"
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/yarn
+chmod +x /usr/local/bin/yarn
 
-    # Create pnpm blocker
-    cat > /usr/local/bin/pnpm << 'BLOCKER'
+# Create pnpm blocker
+cat > /usr/local/bin/pnpm << 'BLOCKER'
 #!/bin/sh
 echo "⚠️  Run pnpm on your host system!"
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/pnpm
+chmod +x /usr/local/bin/pnpm
 
-    # Create apk blocker
-    cat > /usr/local/bin/apk << 'BLOCKER'
+# Create apk blocker
+cat > /usr/local/bin/apk << 'BLOCKER'
 #!/bin/sh
 echo "⚠️  Use the host system for package management!"
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/apk
+chmod +x /usr/local/bin/apk
 
-    # Create ctest helper
-    cat > /usr/local/bin/ctest << 'HELPER'
+# Create ctest helper
+cat > /usr/local/bin/ctest << 'HELPER'
 #!/bin/sh
 curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"
 HELPER
-    chmod +x /usr/local/bin/ctest
+chmod +x /usr/local/bin/ctest
 
-    # Create ll helper
-    cat > /usr/local/bin/ll << 'HELPER'
+# Create ll helper
+cat > /usr/local/bin/ll << 'HELPER'
 #!/bin/sh
 ls -la "$@"
 HELPER
-    chmod +x /usr/local/bin/ll
+chmod +x /usr/local/bin/ll
+EOF
 }
 
 # Create command blockers (for backwards compatibility - returns aliases)
 claude_docker_create_command_blockers() {
     cat << 'EOF'
+echo "✅ Install Blocker Aliases"
 # Smart Command Blockers (as aliases for .bashrc)
 alias apk='echo "⚠️  Use the host system for package management!" && false'
 alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
@@ -261,10 +266,10 @@ claude_docker_create_override() {
     local ENV_TYPE="$1"  # "dev" or "flow"
     local ENTRYPOINT_FILE="$2"
     local CURRENT_DIR="$3"
-    
+
     local CONTAINER_NAME="claude-$ENV_TYPE"
     local IMAGE_TAG="latest-$ENV_TYPE"
-    
+
     # Set resource limits based on environment type
     if [ "$ENV_TYPE" = "flow" ]; then
         local MEMORY_LIMIT="12G"
@@ -280,7 +285,7 @@ claude_docker_create_override() {
         local CPU_RESERVE="1.0"
         local EXTRA_ENV=""
     fi
-    
+
     cat > "docker-compose.override.yml" << EOF
 services:
   $CONTAINER_NAME:
@@ -313,7 +318,7 @@ $EXTRA_ENV
 
     entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
 EOF
-    
+
     echo "Created $CONTAINER_NAME configuration"
 }
 
@@ -356,7 +361,7 @@ cat > "/home/claude/.config/claude/claude_desktop_config.json" << 'MCPCONFIG'
       "args": []
     },
     "git": {
-      "command": "mcp-server-git", 
+      "command": "mcp-server-git",
       "args": ["--repository", "/var/www/html"]
     },
     "sqlite": {
@@ -415,7 +420,7 @@ EOF
 claude_docker_create_entrypoint() {
     local ENV_TYPE="$1"  # "dev" or "flow"
     local OUTPUT_FILE="$2"
-    
+
     cat > "$OUTPUT_FILE" << EOF
 #!/bin/bash
 
@@ -431,7 +436,7 @@ $(claude_docker_create_base_environment)
 # PHP fix for Alpine
 [ -f /usr/bin/php83 ] && ln -sf /usr/bin/php83 /usr/bin/php 2>/dev/null || true
 EOF
-    
+
     # Add flow-specific environment if needed
     if [ "$ENV_TYPE" = "flow" ]; then
         cat >> "$OUTPUT_FILE" << EOF
@@ -439,7 +444,7 @@ EOF
 $(claude_docker_create_flow_environment)
 EOF
     fi
-    
+
     cat >> "$OUTPUT_FILE" << EOF
 # Setup claude environment
 mkdir -p /home/claude/.claude/{docs,scripts,config}
@@ -453,12 +458,12 @@ fi
 chown -R claude:claude /home/claude/.claude
 
 # Create command scripts (blockers and helpers)
-$(claude_docker_create_command_scripts)
+$(claude_docker_create_command_blocker)
 
 # Setup MCP configuration for Claude
 $(claude_docker_create_mcp_config)
 EOF
-    
+
     # Add flow-specific scripts if needed
     if [ "$ENV_TYPE" = "flow" ]; then
         cat >> "$OUTPUT_FILE" << EOF
@@ -466,7 +471,7 @@ EOF
 $(claude_docker_create_flow_scripts)
 EOF
     fi
-    
+
     cat >> "$OUTPUT_FILE" << EOF
 
 # Create .bashrc for claude user
@@ -545,13 +550,13 @@ chown -R claude:claude /home/claude
 echo 'PS1="\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
 EOF
     fi
-    
+
     cat >> "$OUTPUT_FILE" << 'EOF'
 
 cd /var/www/html
 exec su - claude -c "cd /var/www/html && exec bash"
 EOF
-    
+
     chmod +x "$OUTPUT_FILE"
 }
 
@@ -561,44 +566,163 @@ claude_docker_is_running() {
     docker compose ps "$container_name" 2>/dev/null | grep -q "Up"
 }
 
-# Just connect to existing container
-claude_docker_just_connect() {
-    local container_name="$1"
-    echo "🔗 Connecting to existing $container_name container..."
-    docker compose exec -u claude "$container_name" bash
-    claude_docker_copy_credentials_from "$container_name"
-    echo "✅ Session ended"
-}
-
 # Start container with connection
-claude_docker_start_and_connect() {
+claude_docker_connect() {
     local container_name="$1"
 
     # Check if container is already running
     if claude_docker_is_running "$container_name"; then
         echo "✅ Container already running!"
-        claude_docker_just_connect "$container_name"
+        echo "🔗 Connecting to existing $container_name container as claude user..."
+        docker compose exec -u claude "$container_name" bash
+        echo "✅ Session ended"
     else
         echo "Starting containers..."
-        docker compose down 2>/dev/null || true
         docker compose up -d
-
         sleep 3
-
-        if docker compose ps "$container_name" 2>/dev/null | grep -q "Up"; then
+        if claude_docker_is_running "$container_name"; then
             echo "✅ Container started successfully!"
-
-            claude_docker_copy_credentials_to "$container_name"
-
+            #claude_docker_copy_credentials_to "$container_name"
             echo "🔗 Connecting to $container_name container as claude user..."
             docker compose exec -u claude "$container_name" bash
-
-            claude_docker_copy_credentials_from "$container_name"
+            sleep 1
+            #claude_docker_copy_credentials_from "$container_name"
             echo "✅ Session ended, credentials saved"
         else
             echo "Failed to start. Check logs:"
             docker compose logs "$container_name"
             exit 1
         fi
+    fi
+}
+
+
+claude_docker_connect_as_root() {
+  local container_name="$1"
+  if docker compose ps "$container_name" 2>/dev/null | grep -q "Up"; then
+      echo "✅ Connecting as root"
+      docker compose exec "$container_name" bash
+  else
+      echo "Connecting as root failed. Check logs:"
+      docker compose logs "$container_name"
+      exit 1
+  fi
+}
+
+claude_docker_playwright_config() {
+    if [ ! -f "playwright.config.js" ] && [ ! -f "playwright.config.ts" ]; then
+        echo "📝 Creating default playwright.config.js (customize as needed)..."
+        cat > "playwright.config.js" << 'PWCONFIG'
+// @ts-check
+const { defineConfig, devices } = require('@playwright/test');
+
+/**
+ * Playwright configuration for Claude Flow
+ * @see https://playwright.dev/docs/test-configuration
+ */
+module.exports = defineConfig({
+  testDir: './playwright-tests',
+  outputDir: './playwright-results',
+
+  // Maximum time one test can run
+  timeout: 30 * 1000,
+
+  // Run tests in parallel
+  fullyParallel: true,
+
+  // Fail the build on CI if you accidentally left test.only
+  forbidOnly: !!process.env.CI,
+
+  // Retry on CI only
+  retries: process.env.CI ? 2 : 0,
+
+  // Parallel workers on CI, single on local
+  workers: process.env.CI ? 1 : undefined,
+
+  // Reporter configuration
+  reporter: [
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['list'],
+    ['json', { outputFile: 'playwright-results/results.json' }]
+  ],
+
+  use: {
+    // Base URL for all tests
+    baseURL: process.env.BASE_URL || 'http://localhost',
+
+    // Collect trace when retrying the failed test
+    trace: 'on-first-retry',
+
+    // Screenshot on failure
+    screenshot: {
+      mode: 'only-on-failure',
+      fullPage: true
+    },
+
+    // Video on failure
+    video: 'retain-on-failure',
+
+    // Artifacts folder
+    artifactsPath: './playwright-results/artifacts'
+  },
+
+  // Configure projects for major browsers
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    // Mobile testing
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
+  ],
+
+  // Local dev server (if needed)
+  webServer: process.env.NO_WEBSERVER ? undefined : {
+    command: 'echo "Using localhost from host machine"',
+    url: 'http://localhost',
+    reuseExistingServer: true,
+  },
+});
+PWCONFIG
+        echo "✅ Created playwright.config.js - you can customize it as needed"
+    else
+        echo "✅ Using existing playwright.config.js/ts"
+    fi
+
+    # Setup test directories with playwright prefix
+    echo "📁 Setting up Playwright directories..."
+    mkdir -p playwright-tests
+    mkdir -p playwright-results
+    mkdir -p playwright-report
+
+    # Simple gitignore - just playwright*
+    if [ -f ".gitignore" ]; then
+        grep -q "^playwright" .gitignore || echo -e "\n# Playwright artifacts\nplaywright*" >> .gitignore
+    else
+        cat > .gitignore << 'GITIGNORE'
+# Playwright artifacts
+playwright*
+
+# Docker
+docker-compose.override.yml
+
+# Claude
+.claude.docker.json
+GITIGNORE
     fi
 }

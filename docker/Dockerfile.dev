@@ -72,7 +72,6 @@ RUN mkdir -p /home/claude/.config && \
 
 # Copy context files to claude user directory
 COPY claude/ /home/claude/.claude/
-COPY context/ /home/claude/.claude/context/
 
 # Fix ownership of copied files
 RUN chown -R claude:claude /home/claude/.claude

@@ -15,7 +15,7 @@ source "$SCRIPT_DIR/claude-docker.lib.sh"
 CURRENT_DIR=$(pwd)
 
 # Create compose files
-create_files() {
+claude_docker_create_files() {
     # Create base docker-compose.yml if needed
     claude_docker_create_base_compose
 
@@ -37,16 +37,10 @@ main() {
     echo "Claude Docker v$VERSION"
     echo "========================"
 
+    claude_docker_create_files
     claude_docker_check
-    
-    # If container is already running, just connect
-    if claude_docker_is_running "$CONTAINER_NAME"; then
-        echo "✅ Container already running!"
-        claude_docker_just_connect "$CONTAINER_NAME"
-    else
-        create_files
-        claude_docker_start_and_connect "$CONTAINER_NAME"
-    fi
+    claude_docker_connect "$CONTAINER_NAME"
+
 }
 
 # Handle arguments
@@ -56,19 +50,9 @@ case "${1:-}" in
     --clean) docker compose down; rm -f docker-compose.override.yml; exit 0 ;;
     --root)
         echo "🔐 Starting as root (backdoor mode)..."
-        claude_docker_check
-        create_files
-        docker compose down 2>/dev/null || true
         docker compose up -d
         sleep 3
-        if docker compose ps "$CONTAINER_NAME" 2>/dev/null | grep -q "Up"; then
-            echo "✅ Container started - connecting as root"
-            docker compose exec "$CONTAINER_NAME" bash
-        else
-            echo "Failed to start. Check logs:"
-            docker compose logs "$CONTAINER_NAME"
-            exit 1
-        fi
+        claude_docker_connect_as_root "$CONTAINER_NAME"
         ;;
     -h|--help)
         echo "Usage: $0 [--version|--stop|--clean|--root|--help]"

@@ -1,14 +1,3 @@
-services:
-  webserver:
-    image: nginx:alpine
-    container_name: webserver
-    ports:
-      - "8080:80"
-    volumes:
-      - .:/usr/share/nginx/html:ro
-    networks:
-      - claude-network
-
-networks:
-  claude-network:
-    driver: bridge
+# Minimal docker-compose.yml for claude-docker
+# The actual service is defined in docker-compose.override.yml
+version: '3.8'
