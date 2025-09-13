@@ -76,6 +76,10 @@ COPY claude/ /home/claude/.claude/
 # Copy MCP default configuration
 COPY docker/mcp-default.json /etc/claude/mcp-default.json
 
+# Copy entrypoint script
+COPY docker/entrypoint.dev.sh /docker/entrypoint.dev.sh
+RUN chmod +x /docker/entrypoint.dev.sh
+
 # Fix ownership of copied files
 RUN chown -R claude:claude /home/claude/.claude
 

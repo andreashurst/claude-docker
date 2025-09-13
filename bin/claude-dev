@@ -22,12 +22,8 @@ claude_docker_create_files() {
     # Ask about override
     claude_docker_ask_replace_override || return 0
 
-    # Create custom entrypoint using shared library
-    local ENTRYPOINT_FILE="/tmp/claude-entrypoint-$$.sh"
-    claude_docker_create_entrypoint "dev" "$ENTRYPOINT_FILE"
-
     # Create docker-compose.override.yml using library
-    claude_docker_create_override "dev" "$ENTRYPOINT_FILE" "$CURRENT_DIR"
+    claude_docker_create_override "dev" "$CURRENT_DIR"
 
     claude_docker_update_gitignore
 }

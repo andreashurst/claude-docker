@@ -72,6 +72,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
 # - playwright codegen
 # - playwright install
 
+# Copy entrypoint script
+COPY docker/entrypoint.flow.sh /docker/entrypoint.flow.sh
+RUN chmod +x /docker/entrypoint.flow.sh
+
 # Keep working directory
 WORKDIR /var/www/html
 

@@ -28,12 +28,8 @@ claude_docker_create_files() {
     # MCP configuration would go in container, not in project
     # Removed MCP config creation from project directory
 
-    # Create custom entrypoint using library
-    local ENTRYPOINT_FILE="/tmp/claude-flow-entrypoint-$$.sh"
-    claude_docker_create_entrypoint "flow" "$ENTRYPOINT_FILE"
-
     # Create docker-compose.override.yml using library
-    claude_docker_create_override "flow" "$ENTRYPOINT_FILE" "$CURRENT_DIR"
+    claude_docker_create_override "flow" "$CURRENT_DIR"
 
     # Create README for Flow
     cat > "README-Claude-Flow.md" << EOF

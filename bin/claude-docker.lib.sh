@@ -274,7 +274,7 @@ $EXTRA_ENV
           memory: $MEMORY_RESERVE
           cpus: '$CPU_RESERVE'
 
-    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+    entrypoint: ["/docker/entrypoint.$ENV_TYPE.sh"]
 
 volumes:
   $VOLUME_NAME:
