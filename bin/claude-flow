@@ -298,7 +298,7 @@ cat > "/home/claude/.claude/docs/FLOW.md" << 'EOF2'
 # Claude Flow Environment
 
 ## Testing Tools
-- `flow-test` - Run Playwright tests
+- `playwright test` - Run Playwright tests
 - `flow-screenshot` - Take screenshots
 - `playwright` - Direct Playwright access
 
@@ -314,7 +314,7 @@ cat > "/home/claude/.claude/docs/FLOW.md" << 'EOF2'
 ## Commands
 - `claude` - Auto-login Claude CLI
 - `ctest` - Test localhost
-- `flow-test` - Run tests
+- `playwright test` - Run tests
 EOF2
 
 # Create testing scripts
@@ -329,6 +329,16 @@ EOF2
 chmod +x /home/claude/.claude/scripts/test-browsers.sh
 chown -R claude:claude /home/claude/.claude
 
+# Create command scripts (blockers and helpers)
+claude_docker_create_command_scripts
+
+# Create playwright wrapper - make playwright work like normal
+cat > /usr/local/bin/playwright << 'PLAYWRIGHT'
+#!/bin/sh
+exec npx playwright "$@"
+PLAYWRIGHT
+chmod +x /usr/local/bin/playwright
+
 # ═══════════════════════════════════════════════════════════
 # CLAUDE USER SETUP WITH FLOW FEATURES
 # ═══════════════════════════════════════════════════════════
@@ -340,29 +350,14 @@ cat > /home/claude/.bashrc << 'EOF2'
 alias ll='ls -la'
 alias ..='cd ..'
 
-# Flow-specific aliases (config handles paths)
-alias flow-test='npx playwright test'
-alias flow-ui='npx playwright test --ui'
-alias flow-debug='npx playwright test --debug'
-alias flow-codegen='npx playwright codegen'
-alias flow-install='npx playwright install'
-alias flow-report='npx playwright show-report'
+# Playwright now works directly - just use:
+# playwright test
+# playwright test --ui
+# playwright test --debug
+# playwright codegen
+# playwright install
+# playwright show-report
 
-# Screenshot helper with playwright prefix
-alias flow-screenshot='npx playwright screenshot playwright-results/screenshot-$(date +%Y%m%d-%H%M%S).png'
-
-# Playwright wrapper function
-playwright() {
-    # Let playwright.config.js handle all paths
-    command npx playwright "$@"
-}
-
-# Smart Command Blockers
-alias apk='echo "⚠️  Use the host system for package management!" && false'
-alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
-alias npm='echo "⚠️  Run npm on your host system!" && false'
-alias yarn='echo "⚠️  Run yarn on your host system!" && false'
-alias "git push"='echo "⚠️  Run git push from your host system!" && false'
 
 # Testing shortcuts
 alias ctest='curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"'
@@ -391,10 +386,11 @@ if [ -t 1 ]; then
     echo "  Working Directory: $(pwd)"
     echo "  Project Type: $PROJECT_TYPE"
     echo "  Mode: Testing & Automation"
-    echo "  Commands: flow-test, flow-ui, flow-debug, flow-codegen"
+    echo "  Commands: playwright test, playwright test --ui, playwright codegen"
     echo ""
     
     # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:\$PATH"
     if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
         echo "🚀 Starting Claude..."
         exec claude
@@ -469,9 +465,9 @@ EOF
 
 ## Quick Start:
 \`\`\`bash
-flow-test          # Run Playwright tests
-flow-ui            # Open test UI
-flow-debug         # Debug mode
+playwright test          # Run Playwright tests
+playwright test --ui    # Open test UI
+playwright test --debug # Debug mode
 flow-codegen       # Generate test code
 \`\`\`
 

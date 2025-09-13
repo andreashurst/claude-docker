@@ -52,13 +52,15 @@ fi
 
 chown -R claude:claude /home/claude/.claude
 
+# Create command scripts (blockers and helpers)
+claude_docker_create_command_scripts
+
 # Create .bashrc for claude user
 cat > /home/claude/.bashrc << 'EOF2'
 # Ensure PATH includes npm global bin
 export PATH="/usr/local/bin:\$PATH"
 # Claude Dev Environment
 $(claude_docker_create_common_aliases)
-$(claude_docker_create_command_blockers)
 $(claude_docker_create_claude_wrapper)
 
 # Project detection
@@ -76,6 +78,7 @@ if [ -t 1 ]; then
     echo ""
     
     # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:\$PATH"
     if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
         echo "🚀 Starting Claude..."
         exec claude

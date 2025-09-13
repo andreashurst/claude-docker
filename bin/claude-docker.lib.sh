@@ -85,7 +85,7 @@ claude_docker_copy_credentials_to() {
     else
         echo "ℹ️  No Claude Docker credentials found"
         echo "🔐 Starting automatic login..."
-        docker compose exec -T "$container_name" su - claude -c "claude auth login" || {
+        docker compose exec -T "$container_name" bash -c "export PATH=/usr/local/bin:\$PATH && su claude -c 'claude auth login'" || {
             echo "⚠️  Auto-login failed. Please run 'claude auth login' manually in container"
         }
     fi
@@ -174,15 +174,72 @@ export LC_ALL=en_US.UTF-8
 EOF
 }
 
-# Create command blockers
+# Create command blocker scripts and helper commands
+claude_docker_create_command_scripts() {
+    # Create git blocker
+    cat > /usr/local/bin/git << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Run git from your host system!"
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/git
+
+    # Create npm blocker
+    cat > /usr/local/bin/npm << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Run npm on your host system!"
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/npm
+
+    # Create yarn blocker
+    cat > /usr/local/bin/yarn << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Run yarn on your host system!"
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/yarn
+
+    # Create pnpm blocker
+    cat > /usr/local/bin/pnpm << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Run pnpm on your host system!"
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/pnpm
+
+    # Create apk blocker
+    cat > /usr/local/bin/apk << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Use the host system for package management!"
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/apk
+    
+    # Create ctest helper
+    cat > /usr/local/bin/ctest << 'HELPER'
+#!/bin/sh
+curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"
+HELPER
+    chmod +x /usr/local/bin/ctest
+    
+    # Create ll helper
+    cat > /usr/local/bin/ll << 'HELPER'
+#!/bin/sh
+ls -la "$@"
+HELPER
+    chmod +x /usr/local/bin/ll
+}
+
+# Create command blockers (for backwards compatibility - returns aliases)
 claude_docker_create_command_blockers() {
     cat << 'EOF'
-# Smart Command Blockers
+# Smart Command Blockers (as aliases for .bashrc)
 alias apk='echo "⚠️  Use the host system for package management!" && false'
 alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
 alias npm='echo "⚠️  Run npm on your host system!" && false'
 alias yarn='echo "⚠️  Run yarn on your host system!" && false'
-alias "git push"='echo "⚠️  Run git push from your host system!" && false'
+alias git='echo "⚠️  Run git from your host system!" && false'
 EOF
 }
 
@@ -204,10 +261,9 @@ EOF
 # Create common aliases
 claude_docker_create_common_aliases() {
     cat << 'EOF'
-# Basic aliases
-alias ll='ls -la'
+# Basic aliases (only ones that can't be scripts)
 alias ..='cd ..'
-alias ctest='curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"'
+# Note: ll and ctest are now available as scripts in /usr/local/bin
 EOF
 }
 
