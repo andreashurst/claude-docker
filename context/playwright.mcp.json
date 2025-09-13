@@ -1,0 +1,274 @@
+{
+  "name": "playwright",
+  "version": "1.0.0",
+  "description": "Model Context Protocol for Playwright - End-to-End Testing Framework",
+  "context": {
+    "framework": "Playwright",
+    "version": "latest",
+    "documentation": "https://playwright.dev",
+    "description": "Cross-browser automation library for end-to-end testing",
+    "features": {
+      "core": {
+        "description": "Core Playwright features",
+        "browsers": ["chromium", "firefox", "webkit"],
+        "capabilities": [
+          "Cross-browser testing",
+          "Auto-wait for elements",
+          "Network interception",
+          "Mobile device emulation",
+          "Parallel test execution",
+          "Visual regression testing",
+          "API testing",
+          "Component testing",
+          "Trace viewer",
+          "Code generation",
+          "Debug mode"
+        ]
+      },
+      "installation": {
+        "npm": "npm install -D @playwright/test",
+        "yarn": "yarn add -D @playwright/test",
+        "pnpm": "pnpm add -D @playwright/test",
+        "browsers": "npx playwright install",
+        "dependencies": "npx playwright install-deps"
+      },
+      "configuration": {
+        "file": "playwright.config.ts",
+        "example": {
+          "use": {
+            "baseURL": "http://localhost:3000",
+            "trace": "on-first-retry",
+            "screenshot": "only-on-failure",
+            "video": "retain-on-failure",
+            "viewport": { "width": 1280, "height": 720 },
+            "ignoreHTTPSErrors": true,
+            "acceptDownloads": true
+          },
+          "projects": [
+            { "name": "chromium", "use": { "...devices['Desktop Chrome']" } },
+            { "name": "firefox", "use": { "...devices['Desktop Firefox']" } },
+            { "name": "webkit", "use": { "...devices['Desktop Safari']" } },
+            { "name": "mobile", "use": { "...devices['iPhone 13']" } }
+          ],
+          "webServer": {
+            "command": "npm run dev",
+            "port": 3000,
+            "reuseExistingServer": "!process.env.CI"
+          }
+        }
+      },
+      "selectors": {
+        "text": "text=Submit",
+        "css": ".btn-primary",
+        "xpath": "//button[@type='submit']",
+        "role": "role=button[name='Submit']",
+        "testId": "data-testid=submit-button",
+        "placeholder": "placeholder=Enter email",
+        "altText": "alt=Profile picture",
+        "title": "title=Save document",
+        "label": "label=Email address",
+        "combined": "button:has-text('Submit')",
+        "nth": "button >> nth=0",
+        "visible": "button >> visible=true"
+      },
+      "actions": {
+        "navigation": [
+          "page.goto(url)",
+          "page.goBack()",
+          "page.goForward()",
+          "page.reload()",
+          "page.waitForURL(url)"
+        ],
+        "interaction": [
+          "click()",
+          "dblclick()",
+          "fill()",
+          "type()",
+          "press()",
+          "selectOption()",
+          "check()",
+          "uncheck()",
+          "hover()",
+          "focus()",
+          "blur()",
+          "dragAndDrop()"
+        ],
+        "waiting": [
+          "waitForSelector()",
+          "waitForLoadState()",
+          "waitForTimeout()",
+          "waitForEvent()",
+          "waitForRequest()",
+          "waitForResponse()",
+          "waitForFunction()"
+        ],
+        "assertions": [
+          "expect(locator).toBeVisible()",
+          "expect(locator).toBeHidden()",
+          "expect(locator).toBeEnabled()",
+          "expect(locator).toBeDisabled()",
+          "expect(locator).toHaveText()",
+          "expect(locator).toHaveValue()",
+          "expect(locator).toHaveAttribute()",
+          "expect(locator).toHaveClass()",
+          "expect(locator).toHaveCount()",
+          "expect(locator).toContainText()",
+          "expect(page).toHaveTitle()",
+          "expect(page).toHaveURL()",
+          "expect(page).toHaveScreenshot()"
+        ]
+      },
+      "api": {
+        "browser_context": [
+          "browser.newContext()",
+          "context.newPage()",
+          "context.addCookies()",
+          "context.clearCookies()",
+          "context.grantPermissions()",
+          "context.setGeolocation()",
+          "context.setExtraHTTPHeaders()",
+          "context.setOffline()",
+          "context.route()",
+          "context.unroute()",
+          "context.storageState()"
+        ],
+        "page": [
+          "page.screenshot()",
+          "page.pdf()",
+          "page.content()",
+          "page.title()",
+          "page.url()",
+          "page.viewport()",
+          "page.evaluate()",
+          "page.evaluateHandle()",
+          "page.addScriptTag()",
+          "page.addStyleTag()",
+          "page.setViewportSize()",
+          "page.emulateMedia()",
+          "page.setExtraHTTPHeaders()"
+        ],
+        "network": [
+          "page.route()",
+          "page.unroute()",
+          "route.fulfill()",
+          "route.abort()",
+          "route.continue()",
+          "page.waitForRequest()",
+          "page.waitForResponse()",
+          "request.url()",
+          "request.method()",
+          "request.headers()",
+          "request.postData()",
+          "response.status()",
+          "response.headers()",
+          "response.body()",
+          "response.json()"
+        ],
+        "debugging": [
+          "page.pause()",
+          "page.screenshot({ path: 'debug.png' })",
+          "console.log(await page.content())",
+          "await page.evaluate(() => debugger)",
+          "process.env.PWDEBUG = '1'",
+          "--debug flag",
+          "trace viewer",
+          "VS Code extension"
+        ]
+      },
+      "test_structure": {
+        "example": "import { test, expect } from '@playwright/test';\n\ntest.describe('Feature', () => {\n  test.beforeEach(async ({ page }) => {\n    await page.goto('/');\n  });\n\n  test('should do something', async ({ page }) => {\n    await page.click('button');\n    await expect(page.locator('.result')).toBeVisible();\n  });\n\n  test.afterEach(async ({ page }) => {\n    await page.screenshot({ path: 'test-result.png' });\n  });\n});",
+        "hooks": ["test.beforeEach", "test.afterEach", "test.beforeAll", "test.afterAll"],
+        "annotations": ["test.skip()", "test.only()", "test.slow()", "test.fixme()", "test.fail()"],
+        "fixtures": ["page", "context", "browser", "browserName", "request"]
+      },
+      "cli_commands": {
+        "test": "npx playwright test",
+        "test_ui": "npx playwright test --ui",
+        "test_debug": "npx playwright test --debug",
+        "test_headed": "npx playwright test --headed",
+        "test_specific": "npx playwright test example.spec.ts",
+        "test_grep": "npx playwright test --grep @smoke",
+        "codegen": "npx playwright codegen",
+        "show_report": "npx playwright show-report",
+        "trace": "npx playwright show-trace trace.zip",
+        "install": "npx playwright install",
+        "install_deps": "npx playwright install-deps"
+      },
+      "best_practices": [
+        "Use page objects for reusable components",
+        "Implement custom fixtures for test setup",
+        "Use data-testid attributes for reliable selectors",
+        "Avoid hard-coded waits, use auto-waiting",
+        "Run tests in parallel for speed",
+        "Use trace viewer for debugging failures",
+        "Implement visual regression testing",
+        "Mock API responses for isolated testing",
+        "Use environment variables for configuration",
+        "Generate tests with codegen as starting point",
+        "Keep tests independent and atomic",
+        "Use descriptive test names",
+        "Implement retry logic for flaky tests",
+        "Use GitHub Actions for CI/CD"
+      ],
+      "common_patterns": {
+        "login_flow": "Create reusable authentication fixture",
+        "api_mocking": "Use page.route() to intercept requests",
+        "file_upload": "Use setInputFiles() for file inputs",
+        "download": "Handle with page.on('download')",
+        "popup_windows": "Handle with page.on('popup')",
+        "iframe": "Use frame() or frameLocator()",
+        "shadow_dom": "Use locator() with pierce option",
+        "drag_drop": "Use dragTo() or manual mouse events",
+        "keyboard": "Use keyboard.type() or press()",
+        "clipboard": "Use clipboard API with evaluate()",
+        "cookies": "Use context.addCookies()",
+        "local_storage": "Use evaluate() with localStorage",
+        "screenshots": "Use page.screenshot() with options",
+        "videos": "Configure in playwright.config.ts"
+      }
+    }
+  },
+  "resources": {
+    "official_docs": "https://playwright.dev/docs/intro",
+    "api_reference": "https://playwright.dev/docs/api/class-playwright",
+    "github": "https://github.com/microsoft/playwright",
+    "discord": "https://aka.ms/playwright/discord",
+    "stack_overflow": "https://stackoverflow.com/questions/tagged/playwright",
+    "vs_code_extension": "https://marketplace.visualstudio.com/items?itemName=ms-playwright.playwright",
+    "test_generator": "https://playwright.dev/docs/codegen",
+    "trace_viewer": "https://playwright.dev/docs/trace-viewer",
+    "examples": "https://github.com/microsoft/playwright/tree/main/examples"
+  },
+  "compatibility": {
+    "node": ">=16.0.0",
+    "browsers": {
+      "chromium": "Latest",
+      "firefox": "Latest",
+      "webkit": "Latest"
+    },
+    "operating_systems": [
+      "Windows 10+",
+      "macOS 11+",
+      "Ubuntu 20.04/22.04",
+      "Debian 11",
+      "CentOS 8",
+      "Alpine Linux (Docker)"
+    ],
+    "ci_platforms": [
+      "GitHub Actions",
+      "GitLab CI",
+      "Jenkins",
+      "CircleCI",
+      "Azure DevOps",
+      "Bitbucket Pipelines",
+      "Travis CI"
+    ]
+  },
+  "mcp_metadata": {
+    "protocol_version": "1.0",
+    "created": "2025-01-13",
+    "author": "Claude Assistant",
+    "purpose": "Provide comprehensive context about Playwright for AI models",
+    "usage": "Include this file in project context to enable accurate Playwright testing assistance"
+  }
+}

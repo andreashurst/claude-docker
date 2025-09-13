@@ -1,0 +1,14 @@
+services:
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/usr/share/nginx/html:ro
+    networks:
+      - claude-network
+
+networks:
+  claude-network:
+    driver: bridge

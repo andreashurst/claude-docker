@@ -113,52 +113,18 @@ claude_docker_find_free_port() {
 
 # Create base docker-compose.yml if needed
 claude_docker_create_base_compose() {
+    # Only create a minimal docker-compose.yml if it doesn't exist
+    # This is just for docker compose to work, not for webserver
     if [ ! -f "docker-compose.yml" ]; then
-        local free_port=$(claude_docker_find_free_port)
         cat > "docker-compose.yml" << EOF
-services:
-  webserver:
-    image: nginx:alpine
-    container_name: webserver
-    ports:
-      - "$free_port:80"
-    volumes:
-      - .:/usr/share/nginx/html:ro
-    networks:
-      - claude-network
-
-networks:
-  claude-network:
-    driver: bridge
+# Minimal docker-compose.yml for claude-docker
+# The actual service is defined in docker-compose.override.yml
+version: '3.8'
 EOF
-        echo "✅ Created docker-compose.yml with webserver on port $free_port"
+        echo "✅ Created minimal docker-compose.yml"
     fi
 }
 
-# Create basic webserver if needed
-claude_docker_create_webserver() {
-    local webserver_type=$(claude_docker_detect_webserver)
-    
-    if [ "$webserver_type" = "none" ] && [ ! -f "docker-compose.yml" ]; then
-        echo "📝 Creating standard docker-compose.yml with webserver..."
-        cat > "docker-compose.yml" << 'EOF'
-services:
-  webserver:
-    image: nginx:alpine
-    ports:
-      - '80:80'
-    volumes:
-      - .:/var/www/html
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-EOF
-        if [ ! -f "index.html" ]; then
-            echo "<h1>Claude Docker Environment</h1>" > index.html
-        fi
-        echo "✅ Created basic webserver"
-        return 0
-    fi
-    return 1
-}
 
 # Ask to replace override file
 claude_docker_ask_replace_override() {
@@ -179,42 +145,20 @@ claude_docker_create_localhost_mapping() {
 
 echo "🔧 Setting up localhost mapping..."
 
-# Try to find the host machine's IP (Docker host)
-HOST_IP=""
-# Try different methods to get host IP
-if [ -f /.dockerenv ]; then
-    # We're in Docker, get host.docker.internal or gateway
-    HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | cut -d' ' -f1)
-    if [ -z "$HOST_IP" ]; then
-        # Fallback to default gateway
-        HOST_IP=$(ip route | grep default | awk '{print $3}')
-    fi
-fi
+# Get the Docker host IP from default gateway
+HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Map localhost to host machine
-    echo "$HOST_IP localhost" >> /etc/hosts
-    echo "✅ Mapped localhost to host machine ($HOST_IP)"
+    # Remove existing 127.0.0.1 localhost entry
+    sed -i '/^127\.0\.0\.1[[:space:]]*localhost/d' /etc/hosts
     
-    # Test common dev ports
-    for port in 3000 8080 4200 5173 8000 5000 4000 3001 80; do
-        if nc -z localhost $port 2>/dev/null; then
-            echo "✅ Found service on localhost:$port"
-            break
-        fi
-    done
+    # Map localhost to Docker host
+    echo "$HOST_IP localhost" >> /etc/hosts
+    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
+    echo "   Now 'curl localhost:PORT' reaches your host machine"
+    echo "   Use the port defined in your docker-compose.yml"
 else
-    # Fallback: try to find any webserver container
-    for service in webserver web nginx apache httpd app server; do
-        if getent hosts $service >/dev/null 2>&1; then
-            SERVICE_IP=$(getent hosts $service | cut -d' ' -f1)
-            if [ -n "$SERVICE_IP" ]; then
-                echo "$SERVICE_IP localhost" >> /etc/hosts
-                echo "✅ Mapped localhost to $service container ($SERVICE_IP)"
-                break
-            fi
-        fi
-    done
+    echo "❌ Could not determine Docker host IP!"
 fi
 EOF
 }

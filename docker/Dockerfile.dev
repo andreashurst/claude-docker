@@ -73,6 +73,13 @@ RUN mkdir -p /home/claude/.config && \
     mkdir -p /home/claude/.claude && \
     chown -R claude:claude /home/claude
 
+# Copy context files to claude user directory
+COPY claude/ /home/claude/.claude/
+COPY context/ /home/claude/.claude/context/
+
+# Fix ownership of copied files
+RUN chown -R claude:claude /home/claude/.claude
+
 # Install Claude Code globally and fix npm global binaries path
 RUN npm install -g @anthropic-ai/claude-code && \
     # Fix npm global binaries to be accessible

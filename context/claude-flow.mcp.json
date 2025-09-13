@@ -1,0 +1,203 @@
+{
+  "name": "claude-flow",
+  "version": "1.0.0",
+  "description": "Model Context Protocol for Claude Flow - Testing Environment",
+  "context": {
+    "tool": "Claude Flow",
+    "description": "Advanced testing environment with Playwright and browser automation",
+    "base": "claude-dev",
+    "documentation": "Claude Docker testing environment",
+    "features": {
+      "core": {
+        "description": "Claude Flow testing capabilities",
+        "included_tools": [
+          "Playwright for E2E testing",
+          "Chromium browser",
+          "Firefox browser",
+          "Webkit browser",
+          "Chrome DevTools Protocol",
+          "Network interception",
+          "Visual regression testing",
+          "API testing capabilities",
+          "Component testing",
+          "Mobile emulation",
+          "Accessibility testing"
+        ],
+        "testing_frameworks": [
+          "@playwright/test",
+          "playwright",
+          "Chrome DevTools",
+          "Firefox Developer Tools"
+        ]
+      },
+      "commands": {
+        "testing": {
+          "run_tests": "npx playwright test",
+          "run_headed": "npx playwright test --headed",
+          "run_debug": "npx playwright test --debug",
+          "run_ui": "npx playwright test --ui",
+          "codegen": "npx playwright codegen",
+          "trace": "npx playwright show-trace",
+          "report": "npx playwright show-report"
+        },
+        "screenshots": {
+          "full_page": "npx playwright screenshot --full-page",
+          "element": "npx playwright screenshot --selector='.element'",
+          "mobile": "npx playwright screenshot --device='iPhone 13'"
+        },
+        "browser_launch": {
+          "chromium": "npx playwright open chromium",
+          "firefox": "npx playwright open firefox",
+          "webkit": "npx playwright open webkit"
+        }
+      },
+      "workflow": {
+        "typical_usage": [
+          "1. Write test in test.spec.ts",
+          "2. Run with: npx playwright test",
+          "3. Debug failures: npx playwright test --debug",
+          "4. View report: npx playwright show-report",
+          "5. Update snapshots: npx playwright test --update-snapshots"
+        ],
+        "codegen_workflow": [
+          "1. Start codegen: npx playwright codegen [url]",
+          "2. Interact with browser",
+          "3. Copy generated code",
+          "4. Refine in test file",
+          "5. Run test to verify"
+        ],
+        "debugging_workflow": [
+          "1. Run with --debug flag",
+          "2. Use page.pause() in tests",
+          "3. Check trace files",
+          "4. View test report",
+          "5. Use VS Code debugger"
+        ]
+      },
+      "test_patterns": {
+        "basic_test": "test('test name', async ({ page }) => {\n  await page.goto('/');\n  await expect(page).toHaveTitle(/Example/);\n});",
+        "with_fixtures": "test('test with fixtures', async ({ page, context }) => {\n  // Use page and context fixtures\n});",
+        "api_test": "test('api test', async ({ request }) => {\n  const response = await request.get('/api/users');\n  expect(response.ok()).toBeTruthy();\n});",
+        "visual_test": "test('visual regression', async ({ page }) => {\n  await page.goto('/');\n  await expect(page).toHaveScreenshot();\n});",
+        "mobile_test": "test.use({ ...devices['iPhone 13'] });\ntest('mobile test', async ({ page }) => {\n  await page.goto('/');\n  // Mobile specific test\n});",
+        "parallel_tests": "test.describe.parallel('Suite', () => {\n  test('test 1', async ({ page }) => {});\n  test('test 2', async ({ page }) => {});\n});"
+      },
+      "configuration": {
+        "playwright_config": {
+          "testDir": "./tests",
+          "fullyParallel": true,
+          "forbidOnly": "!!process.env.CI",
+          "retries": "process.env.CI ? 2 : 0",
+          "workers": "process.env.CI ? 1 : undefined",
+          "reporter": "html",
+          "use": {
+            "actionTimeout": 0,
+            "baseURL": "http://localhost:3000",
+            "trace": "on-first-retry",
+            "screenshot": "only-on-failure",
+            "video": "retain-on-failure"
+          }
+        },
+        "environment_variables": {
+          "PWDEBUG": "Enable debug mode",
+          "PLAYWRIGHT_BROWSERS_PATH": "Custom browser location",
+          "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "Skip download",
+          "CI": "CI environment flag"
+        }
+      },
+      "docker_specific": {
+        "browser_setup": "Browsers pre-installed in container",
+        "display": "Virtual display for headed mode",
+        "networking": "Host network access configured",
+        "permissions": "Running as claude user with proper permissions",
+        "volumes": "Test results saved to mounted volume"
+      },
+      "advanced_features": {
+        "network_mocking": {
+          "intercept_requests": "page.route()",
+          "mock_responses": "route.fulfill()",
+          "block_resources": "route.abort()",
+          "modify_headers": "route.continue()"
+        },
+        "browser_contexts": {
+          "isolated_sessions": "browser.newContext()",
+          "persistent_state": "context.storageState()",
+          "cookies": "context.addCookies()",
+          "permissions": "context.grantPermissions()",
+          "geolocation": "context.setGeolocation()"
+        },
+        "debugging": {
+          "pause_execution": "page.pause()",
+          "step_through": "--debug flag",
+          "trace_viewer": "Show execution trace",
+          "screenshots": "Capture at any point",
+          "videos": "Record test execution",
+          "console_logs": "Capture browser console"
+        }
+      },
+      "common_issues": {
+        "timeout_errors": "Increase timeout or use waitFor methods",
+        "element_not_found": "Check selector, wait for element",
+        "flaky_tests": "Add retries, improve waits",
+        "browser_crash": "Check memory, reduce parallel workers",
+        "permission_denied": "Run with proper user permissions"
+      },
+      "best_practices": [
+        "Use data-testid for reliable selectors",
+        "Keep tests independent and atomic",
+        "Use page objects for reusability",
+        "Mock external dependencies",
+        "Run tests in parallel when possible",
+        "Use proper assertions",
+        "Handle async operations correctly",
+        "Clean up after tests",
+        "Use fixtures for setup/teardown",
+        "Version control test snapshots"
+      ]
+    }
+  },
+  "integration": {
+    "ci_cd": {
+      "github_actions": "Use playwright-github-action",
+      "docker": "Use mcr.microsoft.com/playwright image",
+      "gitlab": "Use playwright Docker image",
+      "jenkins": "Install browsers in pipeline"
+    },
+    "reporting": {
+      "html_report": "Built-in HTML reporter",
+      "junit": "JUnit XML for CI integration",
+      "json": "JSON format for processing",
+      "custom": "Create custom reporters",
+      "allure": "Allure test reports"
+    },
+    "monitoring": {
+      "screenshots": "Capture on failure",
+      "videos": "Record test runs",
+      "traces": "Full execution traces",
+      "logs": "Console and network logs",
+      "performance": "Performance metrics"
+    }
+  },
+  "resources": {
+    "playwright_docs": "https://playwright.dev",
+    "docker_hub": "https://hub.docker.com/r/andreashurst/claude-docker",
+    "github": "https://github.com/andreashurst/claude-docker",
+    "playwright_github": "https://github.com/microsoft/playwright"
+  },
+  "container_info": {
+    "image": "andreashurst/claude-docker:latest-flow",
+    "base_image": "andreashurst/claude-docker:latest-dev",
+    "installed_browsers": ["chromium", "firefox", "webkit"],
+    "user": "claude",
+    "working_dir": "/var/www/html",
+    "node_version": "22",
+    "playwright_version": "latest"
+  },
+  "mcp_metadata": {
+    "protocol_version": "1.0",
+    "created": "2025-01-13",
+    "author": "Claude Assistant",
+    "purpose": "Provide comprehensive context about Claude Flow testing environment",
+    "usage": "Include this file in project context for testing with Claude Flow"
+  }
+}

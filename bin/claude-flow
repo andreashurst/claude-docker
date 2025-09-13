@@ -15,16 +15,6 @@ source "$SCRIPT_DIR/claude-docker.lib.sh"
 
 CURRENT_DIR=$(pwd)
 
-# Detect webserver (same as claude-dev)
-detect_webserver() {
-    if [ -f "docker-compose.yml" ] && grep -q "webserver:" docker-compose.yml; then
-        echo "webserver"
-    elif [ -f ".ddev/config.yaml" ]; then
-        echo "ddev"
-    else
-        echo "none"
-    fi
-}
 
 # Detect project type (same as claude-dev)
 detect_project_type() {
@@ -95,9 +85,7 @@ copy_credentials_from_container() {
 
 # Create compose files for Flow
 create_files() {
-    local webserver_type=$(detect_webserver)
-
-    # Create standard webserver if none exists
+    # Create minimal docker-compose.yml if needed
     claude_docker_create_base_compose
 
     # Ask about override file
@@ -191,7 +179,7 @@ module.exports = defineConfig({
 
   // Local dev server (if needed)
   webServer: process.env.NO_WEBSERVER ? undefined : {
-    command: 'echo "Using existing webserver"',
+    command: 'echo "Using localhost from host machine"',
     url: 'http://localhost',
     reuseExistingServer: true,
   },
@@ -269,20 +257,7 @@ ROOT="/var/www/html"
 # LOCALHOST MAPPING (as root)
 # ═══════════════════════════════════════════════════════════
 
-echo "🔧 Setting up localhost mapping..."
-
-for i in {1..10}; do
-    if getent hosts webserver >/dev/null 2>&1; then
-        WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
-        if [ -n "$WEBSERVER_IP" ]; then
-            sed -i '/^[^#].*[[:space:]]localhost[[:space:]]*$/d' /etc/hosts | grep -v "127.0.0.1" || true
-            echo "$WEBSERVER_IP localhost" >> /etc/hosts
-            echo "✅ Mapped localhost to webserver ($WEBSERVER_IP)"
-            break
-        fi
-    fi
-    [ $i -lt 10 ] && sleep 1
-done
+$(claude_docker_create_localhost_mapping)
 
 # ═══════════════════════════════════════════════════════════
 # FLOW ENVIRONMENT SETUP
@@ -406,6 +381,7 @@ claude() {
 # Always in project directory
 cd /var/www/html 2>/dev/null || true
 
+# Set prompt - shows claude@flow
 PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
 if [ -t 1 ]; then
@@ -417,14 +393,28 @@ if [ -t 1 ]; then
     echo "  Mode: Testing & Automation"
     echo "  Commands: flow-test, flow-ui, flow-debug, flow-codegen"
     echo ""
+    
+    # Auto-start claude based on credentials
+    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
+        echo "🚀 Starting Claude..."
+        exec claude
+    else
+        echo "🔐 No credentials found - starting authentication..."
+        claude auth login
+        # After login, start claude
+        exec claude
+    fi
 fi
 EOF2
 
 chown -R claude:claude /home/claude
 
-# Switch to claude user but STAY in working directory
+# Also set root prompt in case someone execs as root
+echo 'PS1="\[\033[01;31m\]root@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
+
+# Switch to claude user and ensure we're in working directory
 cd /var/www/html
-exec su claude -c "exec bash"
+exec su - claude -c "cd /var/www/html && exec bash"
 EOF
 
     chmod +x /tmp/claude-flow-entrypoint-$$.sh
@@ -514,14 +504,31 @@ case "${1:-}" in
     -v|--version) echo "v$VERSION"; exit 0 ;;
     --stop) docker compose stop claude-flow; exit 0 ;;
     --clean) docker compose down; rm -f docker-compose.override.yml README-Claude-Flow.md; exit 0 ;;
+    --root)
+        echo "🔐 Starting Flow as root (backdoor mode)..."
+        claude_docker_check
+        create_files
+        docker compose down 2>/dev/null || true
+        docker compose up -d
+        sleep 3
+        if docker compose ps "claude-flow" 2>/dev/null | grep -q "Up"; then
+            echo "✅ Flow container started - connecting as root"
+            docker compose exec "claude-flow" bash
+        else
+            echo "Failed to start. Check logs:"
+            docker compose logs "claude-flow"
+            exit 1
+        fi
+        ;;
     -h|--help) 
         echo "Claude Flow - Advanced Testing Environment"
-        echo "Usage: $0 [--version|--stop|--clean|--help]"
+        echo "Usage: $0 [--version|--stop|--clean|--root|--help]"
         echo ""
         echo "Options:"
         echo "  --version  Show version"
         echo "  --stop     Stop container"  
         echo "  --clean    Remove all Flow files"
+        echo "  --root     Start with root access (backdoor)"
         echo "  --help     Show this help"
         exit 0 
         ;;

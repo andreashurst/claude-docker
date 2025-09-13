@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build claude-docker images
 
-set -e
+#set -e
 
 echo "🔨 Building Claude Docker Images"
 echo "================================="
