@@ -281,7 +281,6 @@ services:
     volumes:
       - .:/var/www/html
       - $VOLUME_NAME:/home/claude
-      - $ENTRYPOINT_FILE:/usr/local/bin/custom-entrypoint.sh
 
     environment:
       - NODE_ENV=development
@@ -302,7 +301,7 @@ $EXTRA_ENV
           memory: $MEMORY_RESERVE
           cpus: '$CPU_RESERVE'
 
-    entrypoint: ["/docker/entrypoint.$ENV_TYPE.sh"]
+    entrypoint: ["/docker/entrypoint.sh"]
 
 volumes:
   $VOLUME_NAME:

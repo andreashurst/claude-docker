@@ -68,13 +68,13 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
 # No custom flow-* commands needed
 # Claude Code knows standard commands like:
 # - playwright test
-# - playwright show-report  
+# - playwright show-report
 # - playwright codegen
 # - playwright install
 
 # Copy entrypoint script
-COPY docker/entrypoint.flow.sh /docker/entrypoint.flow.sh
-RUN chmod +x /docker/entrypoint.flow.sh
+COPY docker/entrypoint.flow.sh /docker/entrypoint.sh
+RUN chmod +x /docker/entrypoint.sh
 
 # Keep working directory
 WORKDIR /var/www/html

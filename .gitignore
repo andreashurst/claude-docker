@@ -5,3 +5,12 @@
 .claude
 docker-compose.override.yml
 .mcp.json
+.claude*
+.hive-mind
+playwright*
+*.sqlite
+*.sqlite3
+*.tmp
+.DS_Store
+Thumbs.db
+.backup

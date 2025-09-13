@@ -125,13 +125,7 @@ if [ -t 1 ]; then
 
     # Auto-start claude based on credentials
     export PATH="/usr/local/bin:$PATH"
-    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
-        echo "🚀 Starting Claude..."
-        exec claude
-    else
-        echo "🔐 No credentials found - starting authentication..."
-        exec claude
-    fi
+    claude
 fi
 EOF
 

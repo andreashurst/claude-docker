@@ -47,16 +47,16 @@ RUN apk update && apk upgrade && \
     && rm -rf /var/cache/apk/*
 
 # Install additional package managers and MCP servers
-RUN npm install -g pnpm yarn bun && \
-    pip3 install --break-system-packages pipenv poetry && \
-    # Install MCP servers for Claude
-    npm install -g @modelcontextprotocol/server-filesystem \
-                   @modelcontextprotocol/server-memory \
-                   @modelcontextprotocol/server-sqlite \
-                   @modelcontextprotocol/server-git && \
-    # Install composer for PHP
-    wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
-    chmod +x /usr/local/bin/composer
+#RUN npm install -g pnpm yarn bun && \
+#    pip3 install --break-system-packages pipenv poetry && \
+#    # Install MCP servers for Claude
+#    npm install -g @modelcontextprotocol/server-filesystem \
+#                   @modelcontextprotocol/server-memory \
+#                   @modelcontextprotocol/server-sqlite \
+#                   @modelcontextprotocol/server-git && \
+#    # Install composer for PHP
+#    wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
+#    chmod +x /usr/local/bin/composer
 
 # Create non-root user
 RUN addgroup -g 1010 claude && \
@@ -77,8 +77,8 @@ COPY claude/ /home/claude/.claude/
 COPY docker/mcp.json /etc/claude/mcp.json
 
 # Copy entrypoint script
-COPY docker/entrypoint.dev.sh /docker/entrypoint.dev.sh
-RUN chmod +x /docker/entrypoint.dev.sh
+COPY docker/entrypoint.dev.sh /docker/entrypoint.sh
+RUN chmod +x /docker/entrypoint.sh
 
 # Fix ownership of copied files
 RUN chown -R claude:claude /home/claude/.claude
