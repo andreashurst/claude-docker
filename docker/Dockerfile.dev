@@ -58,8 +58,13 @@ RUN mkdir -p /home/claude/.config && \
     mkdir -p /home/claude/.claude && \
     chown -R claude:claude /home/claude
 
-# Install Claude Code globally
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code globally and fix npm global binaries path
+RUN npm install -g @anthropic-ai/claude-code && \
+    # Fix npm global binaries to be accessible
+    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/bash.bashrc && \
+    # Create direct symlinks for critical commands
+    ln -sf $(npm config get prefix)/bin/claude /usr/local/bin/claude 2>/dev/null || true
 
 # Settings will be created dynamically by entrypoint
 # No static config files needed
@@ -67,7 +72,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # Set environment variables
 ENV NPM_CONFIG_CACHE=/tmp/npm-cache \
     NODE_ENV=development \
-    DOCKER_ENV=true
+    DOCKER_ENV=true \
+    NPM_CONFIG_PREFIX="/usr/local" \
+    PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
 
 # Set working directory
 WORKDIR /var/www/html

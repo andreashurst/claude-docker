@@ -7,12 +7,11 @@
 set -e
 
 VERSION="1.0.0"
+CONTAINER_NAME="claude-flow"
 
-# Check Docker
-if ! docker info >/dev/null 2>&1; then
-    echo "Error: Docker is not running. Please start Docker and try again."
-    exit 1
-fi
+# Load shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/claude-docker.lib.sh"
 
 CURRENT_DIR=$(pwd)
 
@@ -99,24 +98,7 @@ create_files() {
     local webserver_type=$(detect_webserver)
 
     # Create standard webserver if none exists
-    if [ "$webserver_type" = "none" ] && [ ! -f "docker-compose.yml" ]; then
-        echo "📝 Creating standard docker-compose.yml with webserver..."
-        cat > "docker-compose.yml" << 'EOF'
-services:
-  webserver:
-    image: nginx:alpine
-    ports:
-      - '80:80'
-    volumes:
-      - .:/var/www/html
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-EOF
-        if [ ! -f "index.html" ]; then
-            echo "<h1>Claude Flow Environment</h1>" > index.html
-        fi
-        echo "✅ Created basic webserver"
-        webserver_type="webserver"
-    fi
+    claude_docker_create_base_compose
 
     # Ask about override file
     if [ -f "docker-compose.override.yml" ]; then
@@ -522,29 +504,9 @@ main() {
     echo "Advanced testing & automation environment"
     echo ""
 
+    claude_docker_check
     create_files
-
-    echo "Starting containers..."
-    docker compose down 2>/dev/null || true
-    docker compose up -d
-
-    sleep 3
-
-    if docker compose ps "claude-flow" 2>/dev/null | grep -q "Up"; then
-        echo "✅ Container started successfully!"
-        
-        copy_credentials_to_container
-        
-        echo "🔗 Connecting to Claude Flow container..."
-        docker compose exec claude-flow bash
-        
-        copy_credentials_from_container
-        echo "✅ Session ended, credentials saved"
-    else
-        echo "Failed to start. Check logs:"
-        docker compose logs claude-flow
-        exit 1
-    fi
+    claude_docker_start_and_connect "$CONTAINER_NAME"
 }
 
 # Handle arguments

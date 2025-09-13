@@ -84,7 +84,10 @@ claude_docker_copy_credentials_to() {
         echo "✅ Credentials copied from $HOST_CLAUDE_DOCKER"
     else
         echo "ℹ️  No Claude Docker credentials found"
-        echo "   Run 'claude auth login' in container to create them"
+        echo "🔐 Starting automatic login..."
+        docker compose exec -T "$container_name" su - claude -c "claude auth login" || {
+            echo "⚠️  Auto-login failed. Please run 'claude auth login' manually in container"
+        }
     fi
 }
 
@@ -97,6 +100,39 @@ claude_docker_copy_credentials_from() {
     docker compose cp "$container_name:/home/claude/.claude.json" "$HOST_CLAUDE_DOCKER" 2>/dev/null && \
         echo "✅ Credentials saved to $HOST_CLAUDE_DOCKER" || \
         echo "⚠️  No credentials to save (not logged in?)"
+}
+
+# Find a free port
+claude_docker_find_free_port() {
+    local port=8080
+    while lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; do
+        ((port++))
+    done
+    echo $port
+}
+
+# Create base docker-compose.yml if needed
+claude_docker_create_base_compose() {
+    if [ ! -f "docker-compose.yml" ]; then
+        local free_port=$(claude_docker_find_free_port)
+        cat > "docker-compose.yml" << EOF
+services:
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    ports:
+      - "$free_port:80"
+    volumes:
+      - .:/usr/share/nginx/html:ro
+    networks:
+      - claude-network
+
+networks:
+  claude-network:
+    driver: bridge
+EOF
+        echo "✅ Created docker-compose.yml with webserver on port $free_port"
+    fi
 }
 
 # Create basic webserver if needed

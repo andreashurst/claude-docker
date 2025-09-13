@@ -16,7 +16,9 @@ check_docker() {
 install_commands() {
     sudo cp bin/claude-dev /usr/local/bin/claude-dev
     sudo cp bin/claude-flow /usr/local/bin/claude-flow
+    sudo cp bin/claude-docker.lib.sh /usr/local/bin/claude-docker.lib.sh
     sudo chmod +x /usr/local/bin/claude-dev /usr/local/bin/claude-flow
+    sudo chmod 644 /usr/local/bin/claude-docker.lib.sh
     echo "Global commands installed: claude-dev, claude-flow"
 }
 

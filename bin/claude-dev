@@ -12,18 +12,18 @@ CONTAINER_NAME="claude-dev"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/claude-docker.lib.sh"
 
-# Check Docker
-claude_docker_check
-
 CURRENT_DIR=$(pwd)
 
 # Create compose files
 create_files() {
-    # Check for webserver
-    claude_docker_create_webserver
+    # Create base docker-compose.yml if needed
+    echo "DEBUG: Creating base compose..."
+    claude_docker_create_base_compose
     
     # Ask about override
+    echo "DEBUG: Checking override..."
     claude_docker_ask_replace_override || return 0
+    echo "DEBUG: Creating override file..."
 
     # Create custom entrypoint
     cat > "/tmp/claude-entrypoint-$$.sh" << EOF
@@ -47,6 +47,8 @@ chown -R claude:claude /home/claude/.claude
 
 # Create .bashrc for claude user
 cat > /home/claude/.bashrc << 'EOF2'
+# Ensure PATH includes npm global bin
+export PATH="/usr/local/bin:\$PATH"
 # Claude Dev Environment
 $(claude_docker_create_common_aliases)
 $(claude_docker_create_command_blockers)
@@ -132,7 +134,15 @@ main() {
     echo "Claude Docker Installer v$VERSION"
     echo "================================="
     
+    echo "DEBUG: Checking Docker..."
+    claude_docker_check
+    echo "DEBUG: Docker check passed"
+    
+    echo "DEBUG: Creating files..."
     create_files
+    echo "DEBUG: Files created"
+    
+    echo "DEBUG: Starting container..."
     claude_docker_start_and_connect "$CONTAINER_NAME"
 }
 

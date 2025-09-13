@@ -19,6 +19,9 @@ RUN apk add --no-cache \
 
 # Install Playwright properly (both as package and CLI)
 RUN npm install -g playwright@latest @playwright/test && \
+    # Fix npm global binaries to be accessible
+    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/bash.bashrc && \
     npx -y playwright install chromium firefox webkit && \
     npx -y playwright install-deps || true
 
@@ -48,7 +51,10 @@ fi' > /usr/local/bin/npx-wrapper && \
 RUN npm install -g \
     @playwright/mcp \
     @modelcontextprotocol/server-filesystem \
-    claude-flow@latest || true
+    claude-flow@latest || true && \
+    # Create symlinks for all claude-flow related commands
+    ln -sf $(npm config get prefix)/bin/claude-flow /usr/local/bin/claude-flow 2>/dev/null || true && \
+    ln -sf $(npm config get prefix)/bin/mcp /usr/local/bin/mcp 2>/dev/null || true
 
 # Install Python MCP servers
 RUN pip3 install --break-system-packages \
@@ -71,7 +77,8 @@ RUN mkdir -p /home/claude/.cache/ms-playwright && \
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     DENO_INSTALL="/usr/local/deno" \
-    PATH="/usr/local/deno/bin:$PATH" \
+    NPM_CONFIG_PREFIX="/usr/local" \
+    PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:/usr/local/deno/bin:$PATH" \
     FLOW_MODE=true
 
 # Create helper scripts for Flow
