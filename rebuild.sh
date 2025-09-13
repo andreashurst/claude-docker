@@ -19,7 +19,7 @@ docker buildx build \
   --no-cache \
   --pull \
   --force-rm \
-  -f "Dockerfile.flow" \
+  -f docker/Dockerfile.flow \
   --platform "linux/amd64,linux/arm64" \
   -t "andreashurst/claude-docker:latest-flow" \
   .
@@ -28,7 +28,7 @@ docker buildx build \
   --no-cache \
   --pull \
   --force-rm \
-  -f "Dockerfile.dev" \
+  -f docker/Dockerfile.dev \
   --platform "linux/amd64,linux/arm64" \
   -t "andreashurst/claude-docker:latest-dev" \
   .
