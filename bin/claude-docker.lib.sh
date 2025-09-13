@@ -212,9 +212,37 @@ alias ..='cd ..'
 EOF
 }
 
-# Update gitignore
+# Update gitignore with all necessary entries
 claude_docker_update_gitignore() {
-    grep -q "^docker-compose\.override\.yml$" .gitignore 2>/dev/null || echo "docker-compose.override.yml" >> .gitignore
+    # Create .gitignore if it doesn't exist
+    [ ! -f .gitignore ] && touch .gitignore
+
+    # Array of patterns to add to gitignore
+    local patterns=(
+        "docker-compose.override.yml"
+        ".mcp.json"
+        ".claude*"
+        ".hive-mind"
+        "playwright*"
+        "*.sqlite"
+        "*.sqlite3"
+        "*.tmp"
+        ".DS_Store"
+        "Thumbs.db"
+        ".backup"
+    )
+
+    # Add each pattern if it doesn't already exist
+    for pattern in "${patterns[@]}"; do
+        # Escape special characters for grep
+        escaped_pattern=$(echo "$pattern" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        grep -q "^${escaped_pattern}$" .gitignore 2>/dev/null || {
+            echo "$pattern" >> .gitignore
+            echo "  ✓ Added $pattern to .gitignore"
+        }
+    done
+
+    echo "✅ Updated .gitignore with all necessary patterns"
 }
 
 # Create docker-compose.override.yml
@@ -305,17 +333,17 @@ chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/c
 EOF
 }
 
-# Create MCP configuration for Claude (simplified)
+# Create MCP configuration for Claude Code (simplified)
 claude_docker_create_mcp_config() {
     cat << 'EOF'
-# MCP config is now in Docker image at /etc/claude/mcp-default.json
-# Copy only if not exists in volume
-if [ ! -f /home/claude/.config/claude/claude_desktop_config.json ]; then
-    mkdir -p /home/claude/.config/claude
-    cp /etc/claude/mcp-default.json /home/claude/.config/claude/claude_desktop_config.json
-    chown -R claude:claude /home/claude/.config
-    echo "✅ MCP configuration initialized"
+# MCP config should be in project root as .mcp.json (per official docs)
+# Copy default MCP config to project if not exists
+if [ ! -f /var/www/html/.mcp.json ]; then
+    cp /etc/claude/mcp.json /var/www/html/.mcp.json
+    echo "✅ MCP configuration (.mcp.json) created in project root"
 fi
+# Ensure claude user can read it
+chown claude:claude /var/www/html/.mcp.json 2>/dev/null || true
 EOF
 }
 
@@ -360,149 +388,8 @@ chown -R claude:claude /home/claude/.claude
 EOF
 }
 
-# Create entrypoint script for dev or flow environment
-claude_docker_create_entrypoint() {
-    local ENV_TYPE="$1"  # "dev" or "flow"
-    local OUTPUT_FILE="$2"
-
-    cat > "$OUTPUT_FILE" << EOF
-#!/bin/bash
-
-# Claude $ENV_TYPE Container Entrypoint
-ROOT="/var/www/html"
-
-# Localhost mapping
-$(claude_docker_create_localhost_mapping)
-
-# Environment setup
-$(claude_docker_create_base_environment)
-
-# PHP fix for Alpine
-[ -f /usr/bin/php83 ] && ln -sf /usr/bin/php83 /usr/bin/php 2>/dev/null || true
-EOF
-
-    # Add flow-specific environment if needed
-    if [ "$ENV_TYPE" = "flow" ]; then
-        cat >> "$OUTPUT_FILE" << EOF
-# Flow-specific environment
-$(claude_docker_create_flow_environment)
-EOF
-    fi
-
-    cat >> "$OUTPUT_FILE" << EOF
-# Setup claude environment
-mkdir -p /home/claude/.claude/{docs,scripts,config}
-
-# Handle credentials - if mounted or copied, ensure claude owns them
-if [ -f /home/claude/.claude.json ]; then
-    chown claude:claude /home/claude/.claude.json
-    echo "✅ Claude credentials found and owned by claude user"
-fi
-
-chown -R claude:claude /home/claude/.claude
-
-# Create command scripts (blockers and helpers)
-$(claude_docker_create_command_blocker)
-
-# Setup MCP configuration for Claude
-$(claude_docker_create_mcp_config)
-EOF
-
-    # Add flow-specific scripts if needed
-    if [ "$ENV_TYPE" = "flow" ]; then
-        cat >> "$OUTPUT_FILE" << EOF
-# Flow-specific scripts and tools
-$(claude_docker_create_flow_scripts)
-EOF
-    fi
-
-    cat >> "$OUTPUT_FILE" << EOF
-
-# Create .bashrc for claude user
-cat > /home/claude/.bashrc << 'EOF2'
-# Ensure PATH includes npm global bin
-export PATH="/usr/local/bin:\$PATH"
-# Claude $ENV_TYPE Environment
-$(claude_docker_create_common_aliases)
-
-# Command blockers to prevent accidental project modifications
-$(claude_docker_create_command_blockers)
-
-# Project detection
-cd /var/www/html 2>/dev/null || true
-EOF
-
-    # Add environment-specific prompt and content
-    if [ "$ENV_TYPE" = "flow" ]; then
-        cat >> "$OUTPUT_FILE" << 'EOF'
-# Set prompt - shows claude@flow
-PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-
-if [ -t 1 ]; then
-    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
-    echo ""
-    echo "Claude Flow Environment"
-    echo "  Working Directory: $(pwd)"
-    echo "  Project Type: $PROJECT_TYPE"
-    echo ""
-
-    # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:$PATH"
-    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
-        echo "🚀 Starting Claude..."
-        exec claude
-    else
-        echo "🔐 No credentials found - starting authentication..."
-        exec claude
-    fi
-fi
-EOF2
-
-chown -R claude:claude /home/claude
-
-# Also set root prompt in case someone execs as root
-echo 'PS1="\[\033[01;31m\]root@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
-EOF
-    else
-        cat >> "$OUTPUT_FILE" << 'EOF'
-# Set prompt - shows claude@dev
-PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-
-if [ -t 1 ]; then
-    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
-    echo ""
-    echo "Claude Development Environment"
-    echo "  Working Directory: $(pwd)"
-    echo "  Project Type: $PROJECT_TYPE"
-    echo ""
-
-    # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:$PATH"
-    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
-        echo "🚀 Starting Claude..."
-        exec claude
-    else
-        echo "🔐 No credentials found - starting authentication..."
-        exec claude
-    fi
-fi
-EOF2
-
-chown -R claude:claude /home/claude
-
-# Also set root prompt in case someone execs as root
-echo 'PS1="\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
-EOF
-    fi
-
-    cat >> "$OUTPUT_FILE" << 'EOF'
-
-cd /var/www/html
-exec su - claude -c "cd /var/www/html && exec bash"
-EOF
-
-    chmod +x "$OUTPUT_FILE"
-}
+# Removed obsolete entrypoint creation function - now using docker/entrypoint.*.sh files directly
+# The localhost mapping and other helper functions are still available above for reference
 
 # Check if container is already running
 claude_docker_is_running() {

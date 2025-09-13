@@ -4,3 +4,4 @@
 # Claude
 .claude
 docker-compose.override.yml
+.mcp.json

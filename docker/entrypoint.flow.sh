@@ -10,6 +10,29 @@ export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
 ROOT="/var/www/html"
 
 # ═══════════════════════════════════════════════════════════
+# LOCALHOST MAPPING (as root)
+# ═══════════════════════════════════════════════════════════
+
+echo "🔧 Setting up localhost mapping..."
+
+# Get the Docker host IP from default gateway
+HOST_IP=$(ip route | grep default | awk '{print $3}')
+
+if [ -n "$HOST_IP" ]; then
+    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
+    sed -i '/[[:space:]]localhost/d' /etc/hosts
+    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+
+    # Map localhost to Docker host (single entry)
+    echo "$HOST_IP localhost" >> /etc/hosts
+    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
+    echo "   Now 'curl localhost:PORT' reaches your host machine"
+    echo "   Use the port defined in your docker-compose.yml"
+else
+    echo "❌ Could not determine Docker host IP!"
+fi
+
+# ═══════════════════════════════════════════════════════════
 # ROOT OPERATIONS (system-level setup)
 # ═══════════════════════════════════════════════════════════
 
@@ -139,19 +162,12 @@ alias curl='/usr/local/bin/curl-docker'
 alias playwright='/usr/local/bin/playwright-docker'
 alias vite-proxy='node /usr/local/share/claude/vite-hmr-proxy.cjs'
 
-# Show Docker tools info on login
-echo ""
-echo "🐳 Docker Development Tools Ready:"
-echo "  • curl http://localhost:3000        → auto-rewrites to host.docker.internal"
-echo "  • playwright screenshot URL out.png → auto-rewrites URLs"
-echo "  • vite-proxy 3000                   → start HMR proxy for Vite"
-echo "  • Frontend URL: $FRONTEND_URL"
-echo ""
-
-# Show info on login (only if the script exists)
-if [ -f /usr/local/bin/claude-info ]; then
-    /usr/local/bin/claude-info
-fi
+# Command blockers to prevent accidental project modifications
+alias apk='echo "⚠️  Use the host system for package management!" && false'
+alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
+alias npm='echo "⚠️  Run npm on your host system!" && false'
+alias yarn='echo "⚠️  Run yarn on your host system!" && false'
+alias git='echo "⚠️  Run git from your host system!" && false'
 
 # Standard aliases
 alias ll='ls -la'
@@ -165,11 +181,41 @@ alias test-connectivity='ping -c 3 host.docker.internal 2>/dev/null || echo "Can
 alias test-tools='echo "Testing tools..."; test-curl; test-playwright; test-connectivity'
 
 # Custom prompt
-PS1='\[\033[01;32m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+if [ -t 1 ]; then
+    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
+    echo ""
+    echo "Claude Flow Environment"
+    echo "  Working Directory: $(pwd)"
+    echo "  Project Type: $PROJECT_TYPE"
+    echo ""
+    
+    # Show Docker tools info
+    echo "🐳 Docker Development Tools Ready:"
+    echo "  • curl http://localhost:3000        → auto-rewrites to host.docker.internal"
+    echo "  • playwright screenshot URL out.png → auto-rewrites URLs"
+    echo "  • vite-proxy 3000                   → start HMR proxy for Vite"
+    echo "  • Frontend URL: $FRONTEND_URL"
+    echo ""
+
+    # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:$PATH"
+    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
+        echo "🚀 Starting Claude..."
+        exec claude
+    else
+        echo "🔐 No credentials found - starting authentication..."
+        exec claude
+    fi
+fi
 EOF
 
 # Set ownership of bashrc
 chown claude:claude /home/claude/.bashrc
+
+# Also set root prompt in case someone execs as root
+echo 'PS1="\[\033[01;31m\]root@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
 
 echo ""
 echo "✅ Claude Flow container initialized successfully!"
@@ -179,4 +225,5 @@ echo "📝 Type 'cat ~/README.md' for tool usage"
 echo ""
 
 # Switch to claude user and start interactive shell
-exec su - claude
+cd /var/www/html
+exec su - claude -c "cd /var/www/html && exec bash"

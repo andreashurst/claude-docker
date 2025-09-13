@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-server-filesystem",
+      "args": ["/var/www/html"],
+      "description": "File system operations and management"
+    },
+    "memory": {
+      "command": "mcp-server-memory",
+      "args": [],
+      "description": "In-memory data storage and caching"
+    },
+    "git": {
+      "command": "mcp-server-git",
+      "args": ["--repository", "/var/www/html"],
+      "description": "Git repository operations"
+    },
+    "sqlite": {
+      "command": "mcp-server-sqlite",
+      "args": ["--data-dir", "/home/claude/.claude/databases"],
+      "description": "SQLite database management"
+    }
+  },
+  "contextFiles": {
+    "playwright": "/home/claude/.claude/context/playwright.mcp.json",
+    "tailwind": "/home/claude/.claude/context/tailwind-v4.1.mcp.json",
+    "daisyui": "/home/claude/.claude/context/daisyui.mcp.json",
+    "claude-flow": "/home/claude/.claude/context/claude-flow.mcp.json"
+  },
+  "notes": "Additional MCP servers like @playwright/mcp, hive-mine, etc. can be installed and configured as needed per project"
+}

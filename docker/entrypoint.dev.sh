@@ -9,11 +9,23 @@ ROOT="/var/www/html"
 # LOCALHOST MAPPING (as root)
 # ═══════════════════════════════════════════════════════════
 
-if getent hosts webserver >/dev/null 2>&1; then
-    WEBSERVER_IP=$(getent hosts webserver | cut -d' ' -f1)
-    sed -i '/[[:space:]]localhost[[:space:]]*$/d' /etc/hosts
-    echo "$WEBSERVER_IP localhost" >> /etc/hosts
-    echo "Mapped localhost to webserver ($WEBSERVER_IP)"
+echo "🔧 Setting up localhost mapping..."
+
+# Get the Docker host IP from default gateway
+HOST_IP=$(ip route | grep default | awk '{print $3}')
+
+if [ -n "$HOST_IP" ]; then
+    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
+    sed -i '/[[:space:]]localhost/d' /etc/hosts
+    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+
+    # Map localhost to Docker host (single entry)
+    echo "$HOST_IP localhost" >> /etc/hosts
+    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
+    echo "   Now 'curl localhost:PORT' reaches your host machine"
+    echo "   Use the port defined in your docker-compose.yml"
+else
+    echo "❌ Could not determine Docker host IP!"
 fi
 
 # ═══════════════════════════════════════════════════════════
@@ -89,18 +101,45 @@ chown -R claude:claude $ROOT/.claude
 # Simple .bashrc for claude user
 cat > /home/claude/.bashrc << 'EOF'
 # Claude Dev Environment
+export PATH="/usr/local/bin:$PATH"
 alias ll='ls -la'
 alias ..='cd ..'
 alias test-connectivity='/home/claude/.claude/scripts/test-connectivity.sh'
+
+# Command blockers to prevent accidental project modifications
+alias apk='echo "⚠️  Use the host system for package management!" && false'
+alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
+alias npm='echo "⚠️  Run npm on your host system!" && false'
+alias yarn='echo "⚠️  Run yarn on your host system!" && false'
+alias git='echo "⚠️  Run git from your host system!" && false'
+
 PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
-echo ""
-echo "Claude Dev Container Ready"
-echo "  Working Directory: $(pwd)"
-echo "  Help: cat ~/.claude/docs/README.md"
-echo "  Test Network: test-connectivity"
-echo ""
+if [ -t 1 ]; then
+    PROJECT_TYPE="${PROJECT_TYPE:-unknown}"
+    echo ""
+    echo "Claude Development Environment"
+    echo "  Working Directory: $(pwd)"
+    echo "  Project Type: $PROJECT_TYPE"
+    echo ""
+
+    # Auto-start claude based on credentials
+    export PATH="/usr/local/bin:$PATH"
+    if [ -f /home/claude/.claude.json ] && grep -q "oauthAccount" /home/claude/.claude.json 2>/dev/null; then
+        echo "🚀 Starting Claude..."
+        exec claude
+    else
+        echo "🔐 No credentials found - starting authentication..."
+        exec claude
+    fi
+fi
 EOF
 
+chown -R claude:claude /home/claude
+
+# Also set root prompt in case someone execs as root
+echo 'PS1="\[\033[01;31m\]root@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]# "' >> /root/.bashrc
+
 # Switch to claude user and start shell
+cd /var/www/html
 exec su - claude -c "cd /var/www/html && exec bash"
