@@ -31,17 +31,32 @@ RUN apk update && apk upgrade && \
     postgresql-client mysql-client \
     redis \
     docker-cli \
+    # Image and PDF handling tools
+    imagemagick \
+    imagemagick-doc \
+    imagemagick-dev \
+    ghostscript \
+    poppler-utils \
+    ffmpeg \
+    exiftool \
+    graphicsmagick \
+    libwebp-tools \
+    jpegoptim \
+    pngquant \
+    optipng \
     && rm -rf /var/cache/apk/*
 
 # Install additional package managers and create fake commands
 RUN npm install -g pnpm yarn bun && \
     pip3 install --break-system-packages pipenv poetry && \
     # Create fake commands that Claude expects on a normal host
-    echo '#!/bin/sh\necho "brew: simulated for container environment"' > /usr/local/bin/brew && \
-    echo '#!/bin/sh\necho "systemctl: simulated for container environment"' > /usr/local/bin/systemctl && \
-    echo '#!/bin/sh\necho "apt: simulated for container environment"' > /usr/local/bin/apt && \
-    echo '#!/bin/sh\necho "apt-get: simulated for container environment"' > /usr/local/bin/apt-get && \
-    chmod +x /usr/local/bin/brew /usr/local/bin/systemctl /usr/local/bin/apt /usr/local/bin/apt-get && \
+    echo '#!/bin/sh\necho "brew: simulated (all packages pre-installed)"' > /usr/local/bin/brew && \
+    echo '#!/bin/sh\necho "systemctl: service running (simulated)"' > /usr/local/bin/systemctl && \
+    echo '#!/bin/sh\necho "apt: simulated (all packages pre-installed)"' > /usr/local/bin/apt && \
+    echo '#!/bin/sh\necho "apt-get: simulated (all packages pre-installed)"' > /usr/local/bin/apt-get && \
+    echo '#!/bin/sh\necho "ssh: localhost only (no external servers)"' > /usr/local/bin/ssh && \
+    echo '#!/bin/sh\necho "service: all services running"' > /usr/local/bin/service && \
+    chmod +x /usr/local/bin/brew /usr/local/bin/systemctl /usr/local/bin/apt /usr/local/bin/apt-get /usr/local/bin/ssh /usr/local/bin/service && \
     # Create composer for PHP
     wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
     chmod +x /usr/local/bin/composer
