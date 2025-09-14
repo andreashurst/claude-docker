@@ -32,6 +32,20 @@ fi
 # SETUP CLAUDE ENVIRONMENT
 # ═══════════════════════════════════════════════════════════
 
+# Install command blockers (ONLY works in Docker, safe for host)
+# This creates /usr/local/bin/apk blocker to prevent container modifications
+if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
+    # Only block APK, not npm/yarn/pnpm/git
+    cat > /usr/local/bin/apk << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Use the host system for APK package management!"
+echo "   This is blocked to prevent accidental container modifications."
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/apk
+    echo "✅ APK blocker installed (container safety)"
+fi
+
 # Create .claude directory structure
 mkdir -p $ROOT/.claude/{docs,scripts,config}
 chown -R claude:claude $ROOT/.claude
@@ -101,17 +115,15 @@ chown -R claude:claude $ROOT/.claude
 # Simple .bashrc for claude user
 cat > /home/claude/.bashrc << 'EOF'
 # Claude Dev Environment
-export PATH="/usr/local/bin:$PATH"
+export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+export NPM_CONFIG_PREFIX="/usr/local"
 alias ll='ls -la'
 alias ..='cd ..'
 alias test-connectivity='/home/claude/.claude/scripts/test-connectivity.sh'
 
-# Command blockers to prevent accidental project modifications
-alias apk='echo "⚠️  Use the host system for package management!" && false'
-alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
-alias npm='echo "⚠️  Run npm on your host system!" && false'
-alias yarn='echo "⚠️  Run yarn on your host system!" && false'
-alias git='echo "⚠️  Run git from your host system!" && false'
+# Package managers are now available in the container
+# Only block system package manager to prevent container modifications
+alias apk='echo "⚠️  Use the host system for APK package management!" && false'
 
 PS1='\[\033[01;32m\]claude@dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
@@ -124,8 +136,14 @@ if [ -t 1 ]; then
     echo ""
 
     # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:$PATH"
-    claude
+    export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+    # Check if claude command exists and run it
+    if command -v claude >/dev/null 2>&1; then
+        claude
+    else
+        echo "⚠️  Claude CLI not found. You may need to run: claude auth login"
+        echo "   If claude command is still not working, try: /usr/local/bin/claude"
+    fi
 fi
 EOF
 

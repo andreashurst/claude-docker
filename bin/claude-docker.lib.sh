@@ -130,47 +130,32 @@ EOF
 }
 
 
-# Create command blocker scripts and helper commands
+# Create helper commands and SAFE blockers (ONLY in Docker containers!)
 claude_docker_create_command_blocker() {
     cat << 'EOF'
-echo "✅ Install Bin Blocker"
-# Create git blocker
-cat > /usr/local/bin/git << 'BLOCKER'
-#!/bin/sh
-echo "⚠️  Run git from your host system!"
-exit 1
-BLOCKER
-chmod +x /usr/local/bin/git
+# CRITICAL: Only run this inside Docker containers, NEVER on host!
+if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
+    echo "⚠️  WARNING: Not in a Docker container - skipping blocker installation"
+    echo "   This protects your host system from being affected"
+    return 0
+fi
 
-# Create npm blocker
-cat > /usr/local/bin/npm << 'BLOCKER'
-#!/bin/sh
-echo "⚠️  Run npm on your host system!"
-exit 1
-BLOCKER
-chmod +x /usr/local/bin/npm
+echo "✅ Install Helper Commands (Docker container confirmed)"
 
-# Create yarn blocker
-cat > /usr/local/bin/yarn << 'BLOCKER'
-#!/bin/sh
-echo "⚠️  Run yarn on your host system!"
-exit 1
-BLOCKER
-chmod +x /usr/local/bin/yarn
-
-# Create pnpm blocker
-cat > /usr/local/bin/pnpm << 'BLOCKER'
-#!/bin/sh
-echo "⚠️  Run pnpm on your host system!"
-exit 1
-BLOCKER
-chmod +x /usr/local/bin/pnpm
-
-# Create apk blocker
+# Only block APK to prevent container system modifications
+# npm, yarn, pnpm, git are NOT blocked - they're available for use
 cat > /usr/local/bin/apk << 'BLOCKER'
 #!/bin/sh
-echo "⚠️  Use the host system for package management!"
-exit 1
+# Double-check we're in Docker before blocking
+if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
+    # On host system - run real apk
+    /sbin/apk "$@"
+else
+    # In Docker - block it
+    echo "⚠️  Use the host system for APK package management!"
+    echo "   This is blocked to prevent accidental container modifications."
+    exit 1
+fi
 BLOCKER
 chmod +x /usr/local/bin/apk
 
@@ -190,16 +175,18 @@ chmod +x /usr/local/bin/ll
 EOF
 }
 
-# Create command blockers (for backwards compatibility - returns aliases)
+# Create command blockers as aliases (backup method, also Docker-safe)
 claude_docker_create_command_blockers() {
     cat << 'EOF'
-echo "✅ Install Blocker Aliases"
-# Smart Command Blockers (as aliases for .bashrc)
-alias apk='echo "⚠️  Use the host system for package management!" && false'
-alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
-alias npm='echo "⚠️  Run npm on your host system!" && false'
-alias yarn='echo "⚠️  Run yarn on your host system!" && false'
-alias git='echo "⚠️  Run git from your host system!" && false'
+# CRITICAL: Only set aliases in Docker containers
+if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
+    echo "⚠️  Not in Docker - skipping alias blockers for safety"
+    return 0
+fi
+
+echo "✅ Install Safety Aliases (Docker container confirmed)"
+# Only block APK to prevent system modifications
+alias apk='echo "⚠️  Use the host system for APK package management!" && false'
 EOF
 }
 
@@ -549,8 +536,7 @@ playwright*
 # Docker
 docker-compose.override.yml
 
-# Claude
-.claude.docker.json
+# Claude files
 GITIGNORE
     fi
 }

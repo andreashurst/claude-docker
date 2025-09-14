@@ -36,38 +36,27 @@ fi
 # ROOT OPERATIONS (system-level setup)
 # ═══════════════════════════════════════════════════════════
 
-echo "🔧 Setting up Docker development tools..."
+echo "🔧 Setting up Flow environment..."
 
-# Create convenient symlinks for the wrappers if they don't exist
-if [ ! -L "/usr/local/bin/curl-wrapped" ] && [ -f "/usr/local/bin/curl-docker" ]; then
-    ln -sf /usr/local/bin/curl-docker /usr/local/bin/curl-wrapped
-    echo "  ✓ Curl wrapper linked"
+# Install command blockers (ONLY works in Docker, safe for host)
+if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
+    # Only block APK, not npm/yarn/pnpm/git
+    cat > /usr/local/bin/apk << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Use the host system for APK package management!"
+echo "   This is blocked to prevent accidental container modifications."
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/apk
+    echo "✅ APK blocker installed (container safety)"
 fi
 
-if [ ! -L "/usr/local/bin/playwright-wrapped" ] && [ -f "/usr/local/bin/playwright-docker" ]; then
-    ln -sf /usr/local/bin/playwright-docker /usr/local/bin/playwright-wrapped
-    echo "  ✓ Playwright wrapper linked"
-fi
-
-# Ensure scripts are executable (we're running as root)
-chmod +x /usr/local/bin/curl-docker 2>/dev/null && echo "  ✓ curl-docker executable" || echo "  ⚠ Could not make curl-docker executable"
-chmod +x /usr/local/bin/playwright-docker 2>/dev/null && echo "  ✓ playwright-docker executable" || echo "  ⚠ Could not make playwright-docker executable"
-chmod +x /usr/local/bin/vite-proxy 2>/dev/null && echo "  ✓ vite-proxy executable" || echo "  ⚠ Could not make vite-proxy executable"
-chmod +x /usr/local/bin/detect-environment 2>/dev/null && echo "  ✓ detect-environment executable" || echo "  ⚠ Could not make detect-environment executable"
-chmod +x /usr/local/share/claude/vite-hmr-proxy.cjs 2>/dev/null && echo "  ✓ vite-hmr-proxy.cjs executable" || echo "  ⚠ Could not make vite-hmr-proxy.cjs executable"
-
-# Test if tools are working
-if /usr/local/bin/curl-docker --version >/dev/null 2>&1; then
-    echo "  ✓ Curl wrapper operational"
+# Test if Playwright is working (installed via npm in Dockerfile)
+if command -v playwright >/dev/null 2>&1; then
+    PLAYWRIGHT_VERSION=$(playwright --version 2>/dev/null | head -n1)
+    echo "  ✓ Playwright operational ($PLAYWRIGHT_VERSION)"
 else
-    echo "  ⚠ Curl wrapper test failed (non-critical)"
-fi
-
-if /usr/local/bin/playwright-docker --version >/dev/null 2>&1; then
-    PLAYWRIGHT_VERSION=$(/usr/local/bin/playwright-docker --version 2>/dev/null | head -n1)
-    echo "  ✓ Playwright wrapper operational ($PLAYWRIGHT_VERSION)"
-else
-    echo "  ⚠ Playwright wrapper test failed (non-critical)"
+    echo "  ⚠ Playwright not found - you may need to run: npm install -g playwright"
 fi
 
 # ═══════════════════════════════════════════════════════════
@@ -132,15 +121,9 @@ else
     echo "  ✓ Claude settings already exist in project"
 fi
 
-# Copy examples from container to mounted volume if they don't exist
-mkdir -p "$ROOT/playwright/examples"
-cp /usr/local/share/playwright/* $ROOT/playwright/
-mkdir -p $ROOT/docs
-cp /usr/local/share/docs/* $ROOT/docs/
-
-# Set proper ownership of copied files
-chown -R claude:claude $ROOT/playwright 2>/dev/null || true
-chown -R claude:claude $ROOT/docs 2>/dev/null || true
+# Create playwright directories if needed
+mkdir -p "$ROOT/playwright-tests" "$ROOT/playwright-results" "$ROOT/playwright-report"
+chown -R claude:claude $ROOT/playwright-* 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════
 # USER ENVIRONMENT SETUP
@@ -154,20 +137,16 @@ cat > /home/claude/.bashrc << 'EOF'
 [ -f ~/.claude_env ] && source ~/.claude_env
 
 # Set PATH
-export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
+export PATH="/home/claude/.deno/bin:/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+export NPM_CONFIG_PREFIX="/usr/local"
 export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
 
-# Docker Tools Aliases
-alias curl='/usr/local/bin/curl-docker'
-alias playwright='/usr/local/bin/playwright-docker'
-alias vite-proxy='node /usr/local/share/claude/vite-hmr-proxy.cjs'
+# Playwright is available directly (no wrapper needed)
+# Curl uses the standard Alpine curl
 
-# Command blockers to prevent accidental project modifications
-alias apk='echo "⚠️  Use the host system for package management!" && false'
-alias pnpm='echo "⚠️  Run pnpm on your host system!" && false'
-alias npm='echo "⚠️  Run npm on your host system!" && false'
-alias yarn='echo "⚠️  Run yarn on your host system!" && false'
-alias git='echo "⚠️  Run git from your host system!" && false'
+# Package managers are now available in the container
+# Only block system package manager to prevent container modifications
+alias apk='echo "⚠️  Use the host system for APK package management!" && false'
 
 # Standard aliases
 alias ll='ls -la'
@@ -192,16 +171,22 @@ if [ -t 1 ]; then
     echo ""
 
     # Show Docker tools info
-    echo "🐳 Docker Development Tools Ready:"
-    echo "  • curl http://localhost:3000        → auto-rewrites to host.docker.internal"
-    echo "  • playwright screenshot URL out.png → auto-rewrites URLs"
-    echo "  • vite-proxy 3000                   → start HMR proxy for Vite"
+    echo "🎭 Flow Testing Tools Ready:"
+    echo "  • playwright test                   → run Playwright tests"
+    echo "  • playwright codegen                → generate test code"
+    echo "  • curl http://localhost:3000        → access localhost services"
     echo "  • Frontend URL: $FRONTEND_URL"
     echo ""
 
     # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:$PATH"
-    claude
+    export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+    # Check if claude command exists and run it
+    if command -v claude >/dev/null 2>&1; then
+        claude
+    else
+        echo "⚠️  Claude CLI not found. You may need to run: claude auth login"
+        echo "   If claude command is still not working, try: /usr/local/bin/claude"
+    fi
 fi
 EOF
 

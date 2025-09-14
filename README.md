@@ -16,7 +16,7 @@ claude-dev
 
 - 🔒 **Secure** - Claude Code runs isolated in containers
 - 🔗 **Localhost Works** - `curl localhost` automatically mapped
-- 🔑 **Credentials** - Shared across projects via `~/.claude.docker.json`
+- 🔑 **Credentials** - Stored in Docker volumes for persistence
 - 🚀 **Fast** - Lightweight Alpine Linux base
 - 🎯 **Smart** - Auto-detects project type (Node, PHP, Python, etc.)
 
@@ -82,7 +82,7 @@ curl localhost     # Access your webserver
 The container automatically maps localhost to your webserver. Check with `ctest`.
 
 ### Credentials not saving?
-Credentials are stored in `~/.claude.docker.json` on your host system.
+Credentials are stored in Docker volumes (claude-dev-data or claude-flow-data).
 
 ### Permission issues?
 The container runs as user `claude` (uid 1010) for security.

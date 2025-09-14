@@ -46,17 +46,26 @@ RUN apk update && apk upgrade && \
     optipng \
     && rm -rf /var/cache/apk/*
 
-# Install additional package managers and MCP servers
-#RUN npm install -g pnpm yarn bun && \
-#    pip3 install --break-system-packages pipenv poetry && \
-#    # Install MCP servers for Claude
-#    npm install -g @modelcontextprotocol/server-filesystem \
-#                   @modelcontextprotocol/server-memory \
-#                   @modelcontextprotocol/server-sqlite \
-#                   @modelcontextprotocol/server-git && \
-#    # Install composer for PHP
-#    wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
-#    chmod +x /usr/local/bin/composer
+# Install additional package managers
+RUN npm install -g pnpm yarn && \
+    pip3 install --break-system-packages pipenv poetry && \
+    # Install composer for PHP
+    wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
+    chmod +x /usr/local/bin/composer
+
+# Install Bun separately (requires different approach on Alpine)
+RUN apk add --no-cache unzip && \
+    curl -fsSL https://bun.sh/install | bash && \
+    mv /root/.bun/bin/bun /usr/local/bin/ && \
+    chmod +x /usr/local/bin/bun && \
+    rm -rf /root/.bun
+
+# Install MCP servers (install after fixing npm paths)
+RUN npm install -g \
+    @modelcontextprotocol/server-filesystem \
+    @modelcontextprotocol/server-memory \
+    @modelcontextprotocol/server-sqlite \
+    @modelcontextprotocol/server-git || true
 
 # Create non-root user
 RUN addgroup -g 1010 claude && \
@@ -86,10 +95,13 @@ RUN chown -R claude:claude /home/claude/.claude
 # Install Claude Code globally and fix npm global binaries path
 RUN npm install -g @anthropic-ai/claude-code && \
     # Fix npm global binaries to be accessible
-    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/profile && \
-    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/bash.bashrc && \
+    echo 'export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"' >> /etc/bash.bashrc && \
     # Create direct symlinks for critical commands
-    ln -sf $(npm config get prefix)/bin/claude /usr/local/bin/claude 2>/dev/null || true
+    ln -sf /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.js /usr/local/bin/claude && \
+    chmod +x /usr/local/bin/claude && \
+    # Also try the standard npm bin location
+    [ -f "$(npm config get prefix)/bin/claude" ] && ln -sf $(npm config get prefix)/bin/claude /usr/local/bin/claude-npm || true
 
 # Settings will be created dynamically by entrypoint
 # No static config files needed
