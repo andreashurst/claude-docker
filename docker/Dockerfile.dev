@@ -47,7 +47,8 @@ RUN apk update && apk upgrade && \
     && rm -rf /var/cache/apk/*
 
 # Install additional package managers
-RUN npm install -g pnpm yarn && \
+# Use --force to overwrite any existing files since we're in a container
+RUN npm install -g --force pnpm yarn && \
     pip3 install --break-system-packages pipenv poetry && \
     # Install composer for PHP
     wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
@@ -61,7 +62,7 @@ RUN apk add --no-cache unzip && \
     rm -rf /root/.bun
 
 # Install MCP servers (install after fixing npm paths)
-RUN npm install -g \
+RUN npm install -g --force \
     @modelcontextprotocol/server-filesystem \
     @modelcontextprotocol/server-memory \
     @modelcontextprotocol/server-sqlite \
@@ -93,7 +94,7 @@ RUN chmod +x /docker/entrypoint.sh
 RUN chown -R claude:claude /home/claude/.claude
 
 # Install Claude Code globally and fix npm global binaries path
-RUN npm install -g @anthropic-ai/claude-code && \
+RUN npm install -g --force @anthropic-ai/claude-code && \
     # Fix npm global binaries to be accessible
     echo 'export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"' >> /etc/profile && \
     echo 'export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"' >> /etc/bash.bashrc && \

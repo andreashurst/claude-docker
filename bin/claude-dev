@@ -33,8 +33,13 @@ main() {
     echo "Claude Docker v$VERSION"
     echo "========================"
 
-    claude_docker_create_files
     claude_docker_check
+
+    # Only create files if container is not already running
+    if ! claude_docker_is_running "$CONTAINER_NAME"; then
+        claude_docker_create_files
+    fi
+
     claude_docker_connect "$CONTAINER_NAME"
 
 }
