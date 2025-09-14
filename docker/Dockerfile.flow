@@ -94,6 +94,9 @@ RUN npm install -g playwright@latest @playwright/test && \
     # Fix npm global binaries to be accessible (use explicit path)
     echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/profile && \
     echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/bash.bashrc && \
+    # Set NODE_PATH for global module resolution
+    echo 'export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"' >> /etc/profile && \
+    echo 'export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"' >> /etc/bash.bashrc && \
     # Install all Playwright browsers (chromium, firefox, webkit)
     npx playwright install chromium firefox webkit && \
     # Install browser dependencies (should already be installed above)

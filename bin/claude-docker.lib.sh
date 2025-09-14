@@ -247,7 +247,6 @@ test('homepage loads', async ({ page }) => {
 </html>
 HTML
             echo "✅ Created public/index.html with howto guide on port $WEBSERVER_PORT"
-        fi
     fi
 }
 

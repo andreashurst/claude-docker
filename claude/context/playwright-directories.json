@@ -1,0 +1,29 @@
+{
+  "name": "playwright-directories",
+  "version": "1.0.0",
+  "description": "Playwright directory structure and usage guidelines for claude-flow container",
+  "context": {
+    "critical_instructions": "ALWAYS use these directories for Playwright files. NEVER use 'npx playwright', use 'playwright' command directly!",
+    "directory_structure": {
+      "playwright-tests/": "ALL Playwright test files MUST be saved here (*.spec.js, *.test.js, or any test scripts)",
+      "playwright-results/": "ALL screenshots and test artifacts MUST be saved here",
+      "playwright-report/": "HTML test reports are generated here"
+    },
+    "usage_examples": {
+      "save_test_file": "Always save test files as: playwright-tests/your-test.spec.js",
+      "save_screenshot": "await page.screenshot({ path: 'playwright-results/screenshot.png' });",
+      "save_artifacts": "Save artifacts to: playwright-results/your-artifact.json"
+    },
+    "import_playwright": {
+      "method1": "const { chromium, firefox, webkit } = require('/usr/local/lib/node_modules/playwright');",
+      "method2": "const { chromium, firefox, webkit } = require('playwright');",
+      "playwright_test": "const { test, expect } = require('/usr/local/lib/node_modules/@playwright/test');"
+    },
+    "commands": {
+      "run_tests": "playwright test playwright-tests/",
+      "generate_code": "playwright codegen",
+      "view_report": "playwright show-report playwright-report/"
+    },
+    "important_note": "NEVER create Playwright files in the root directory. ALWAYS use the designated directories: playwright-tests/, playwright-results/, playwright-report/"
+  }
+}

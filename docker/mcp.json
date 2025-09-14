@@ -22,6 +22,7 @@
     }
   },
   "contextFiles": {
+    "playwright-directories": "/home/claude/.claude/context/playwright-directories.json",
     "playwright": "/home/claude/.claude/context/playwright.mcp.json",
     "tailwind": "/home/claude/.claude/context/tailwind-v4.1.mcp.json",
     "daisyui": "/home/claude/.claude/context/daisyui.mcp.json",

@@ -82,5 +82,43 @@ The claude command is installed via npm as `@anthropic-ai/claude-code`. The foll
 
 The entrypoint scripts properly set PATH and check for claude command availability before running it. If claude doesn't start automatically, run `claude auth login` first.
 
+### Playwright Testing Structure (IMPORTANT - ALWAYS USE THESE DIRECTORIES)
+The claude-flow container includes Playwright for browser automation testing.
+
+**CRITICAL: When creating ANY Playwright tests or screenshot scripts, you MUST use these directories:**
+- **playwright-tests/**: ALL Playwright test files MUST be saved here (*.spec.js, *.test.js, or any test scripts)
+- **playwright-results/**: ALL screenshots and test artifacts MUST be saved here
+- **playwright-report/**: HTML test reports are generated here
+
+**Directory paths to use in your code:**
+```javascript
+// ALWAYS save tests in:
+'playwright-tests/your-test.spec.js'
+
+// ALWAYS save screenshots in:
+await page.screenshot({ path: 'playwright-results/screenshot.png' });
+
+// ALWAYS save other artifacts in:
+'playwright-results/your-artifact.json'
+```
+
+**How to use Playwright in scripts:**
+```javascript
+// Global Playwright is installed, use it like this:
+const { chromium, firefox, webkit } = require('/usr/local/lib/node_modules/playwright');
+// Or with NODE_PATH set:
+const { chromium, firefox, webkit } = require('playwright');
+
+// For Playwright Test framework:
+const { test, expect } = require('/usr/local/lib/node_modules/@playwright/test');
+```
+
+**Example commands:**
+- `npx playwright test playwright-tests/` - Run all tests in playwright-tests/
+- `npx playwright codegen` - Generate test code by recording actions
+- `npx playwright show-report playwright-report/` - View HTML test report
+
+**REMEMBER: Never create Playwright files in the root directory. Always use the designated directories above!**
+
 ### Security Note
 Only the APK package manager is blocked to prevent accidental system modifications. All development tools are fully functional within the container.

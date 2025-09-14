@@ -1,3 +1,0 @@
-# Minimal docker-compose.yml for claude-docker
-# The actual service is defined in docker-compose.override.yml
-version: '3.8'

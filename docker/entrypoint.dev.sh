@@ -195,6 +195,7 @@ cat > /home/claude/.bashrc << 'EOF'
 # Claude Dev Environment
 export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
 export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
+export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
 alias ll='ls -la'
 alias ..='cd ..'
 alias test-connectivity='/home/claude/.claude/scripts/test-connectivity.sh'

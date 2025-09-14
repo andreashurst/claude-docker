@@ -6,6 +6,8 @@
 
 # Set PATH to include Deno and local binaries
 export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
+# Set NODE_PATH for global modules
+export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
 
 ROOT="/var/www/html"
 
@@ -208,9 +210,18 @@ else
     echo "  ✓ Claude settings already exist in project"
 fi
 
-# Create playwright directories if needed
+# IMPORTANT: Playwright Test Directory Structure
+# The following directories are used for Playwright testing:
+# - playwright-tests/: All test files (*.spec.js, *.test.js) go here
+# - playwright-results/: Test execution results and screenshots are saved here
+# - playwright-report/: HTML test reports are generated here
+# Always save Playwright tests and scripts in these directories!
 mkdir -p "$ROOT/playwright-tests" "$ROOT/playwright-results" "$ROOT/playwright-report"
 chown -R claude:claude $ROOT/playwright-* 2>/dev/null || true
+
+# Playwright is globally installed and can be used with:
+# const { chromium } = require('/usr/local/lib/node_modules/playwright');
+# or: const { chromium } = require('playwright'); (with NODE_PATH set)
 
 # ═══════════════════════════════════════════════════════════
 # USER ENVIRONMENT SETUP
@@ -227,6 +238,7 @@ cat > /home/claude/.bashrc << 'EOF'
 export PATH="/home/claude/.deno/bin:/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
 export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
 export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
 
 # Playwright has all browsers installed and ready
 # Curl uses the standard Debian curl
@@ -260,10 +272,15 @@ if [ -t 1 ]; then
 
     # Show Docker tools info
     echo "🎭 Flow Testing Tools Ready:"
-    echo "  • playwright test                   → run Playwright tests"
+    echo "  • playwright test                   → run tests from playwright-tests/"
     echo "  • playwright codegen                → generate test code"
     echo "  • curl http://localhost:3000        → access localhost services"
     echo "  • Frontend URL: $FRONTEND_URL"
+    echo ""
+    echo "📁 Playwright directories:"
+    echo "  • playwright-tests/                 → place test files here"
+    echo "  • playwright-results/               → screenshots & artifacts"
+    echo "  • playwright-report/                → HTML test reports"
     echo ""
 
     # Auto-start claude based on credentials
