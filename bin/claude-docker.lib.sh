@@ -72,7 +72,8 @@ claude_docker_create_base_compose() {
         cat > "docker-compose.yml" << EOF
 # Minimal docker-compose.yml for claude-docker
 # The actual service is defined in docker-compose.override.yml
-version: '3.8'
+# Note: version attribute is no longer needed in modern Docker Compose
+services: {}
 EOF
         echo "✅ Created minimal docker-compose.yml"
     fi
@@ -82,7 +83,6 @@ EOF
 # Ask to replace override file
 claude_docker_ask_replace_override() {
     if [ -f "docker-compose.override.yml" ]; then
-        echo "XXXXXXXX"
         read -p "Replace existing docker-compose.override.yml? (y/N): " -n 1 -r
         echo
         [[ ! $REPLY =~ ^[Yy]$ ]] && return 1
@@ -319,17 +319,12 @@ chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/c
 EOF
 }
 
-# Create MCP configuration for Claude Code (simplified)
+# Create MCP configuration for Claude Code (system location)
 claude_docker_create_mcp_config() {
     cat << 'EOF'
-# MCP config should be in project root as .mcp.json (per official docs)
-# Copy default MCP config to project if not exists
-if [ ! -f /var/www/html/.mcp.json ]; then
-    cp /etc/claude/mcp.json /var/www/html/.mcp.json
-    echo "✅ MCP configuration (.mcp.json) created in project root"
-fi
-# Ensure claude user can read it
-chown claude:claude /var/www/html/.mcp.json 2>/dev/null || true
+# MCP config is managed at system level (/etc/claude/mcp.json)
+# This is handled by the entrypoint scripts which copy from docker/mcp.json
+echo "✅ MCP configuration managed at /etc/claude/mcp.json (system location)"
 EOF
 }
 

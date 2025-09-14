@@ -28,13 +28,10 @@ RUN npm install -g playwright@latest @playwright/test && \
 # Playwright is installed globally and available as direct command
 # No wrappers needed since npm install -g creates the binary
 
-# Install additional Flow-specific tools and MCP servers
+# Install additional Flow-specific tools
+# Note: MCP servers already installed in base image as root
 RUN npm install -g \
     @playwright/mcp \
-    @modelcontextprotocol/server-filesystem \
-    @modelcontextprotocol/server-memory \
-    @modelcontextprotocol/server-sqlite \
-    @modelcontextprotocol/server-git \
     claude-flow@latest || true && \
     # Create symlinks for all claude-flow related commands
     ln -sf $(npm config get prefix)/bin/claude-flow /usr/local/bin/claude-flow 2>/dev/null || true && \
@@ -61,8 +58,7 @@ RUN mkdir -p /home/claude/.cache/ms-playwright && \
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     DENO_INSTALL="/usr/local/deno" \
-    NPM_CONFIG_PREFIX="/usr/local" \
-    PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:/usr/local/deno/bin:$PATH" \
+    PATH="/home/claude/.npm-global/bin:/usr/local/bin:/usr/local/deno/bin:$PATH" \
     FLOW_MODE=true
 
 # No custom flow-* commands needed

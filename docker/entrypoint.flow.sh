@@ -33,6 +33,30 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
+# SETUP MCP CONFIGURATION
+# ═══════════════════════════════════════════════════════════
+
+echo "🔧 Setting up MCP configuration..."
+
+# Ensure /etc/claude directory exists
+mkdir -p /etc/claude
+
+# Copy MCP config from project to system location if needed
+if [ -f /var/www/html/docker/mcp.json ]; then
+    cp /var/www/html/docker/mcp.json /etc/claude/mcp.json
+    chmod 644 /etc/claude/mcp.json
+    echo "✅ MCP configuration installed at /etc/claude/mcp.json"
+fi
+
+# Copy context files to home directory
+if [ -d /var/www/html/claude/context ]; then
+    mkdir -p /home/claude/.claude/context
+    cp -r /var/www/html/claude/context/*.json /home/claude/.claude/context/ 2>/dev/null || true
+    chown -R claude:claude /home/claude/.claude/context
+    echo "✅ MCP context files copied to /home/claude/.claude/context/"
+fi
+
+# ═══════════════════════════════════════════════════════════
 # ROOT OPERATIONS (system-level setup)
 # ═══════════════════════════════════════════════════════════
 
@@ -137,8 +161,8 @@ cat > /home/claude/.bashrc << 'EOF'
 [ -f ~/.claude_env ] && source ~/.claude_env
 
 # Set PATH
-export PATH="/home/claude/.deno/bin:/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
-export NPM_CONFIG_PREFIX="/usr/local"
+export PATH="/home/claude/.deno/bin:/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
+export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
 export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
 
 # Playwright is available directly (no wrapper needed)
@@ -179,7 +203,7 @@ if [ -t 1 ]; then
     echo ""
 
     # Auto-start claude based on credentials
-    export PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+    export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
     # Check if claude command exists and run it
     if command -v claude >/dev/null 2>&1; then
         claude
