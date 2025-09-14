@@ -4,6 +4,11 @@
   "description": "Playwright directory structure and usage guidelines for claude-flow container",
   "context": {
     "critical_instructions": "ALWAYS use these directories for Playwright files. NEVER use 'npx playwright', use 'playwright' command directly!",
+    "environment": {
+      "PLAYWRIGHT_BROWSERS_PATH": "/opt/playwright-browsers",
+      "browsers_location": "Browsers are pre-installed at /opt/playwright-browsers during Docker build",
+      "no_install_needed": "DO NOT run 'npx playwright install' - browsers are already installed"
+    },
     "directory_structure": {
       "playwright-tests/": "ALL Playwright test files MUST be saved here (*.spec.js, *.test.js, or any test scripts)",
       "playwright-results/": "ALL screenshots and test artifacts MUST be saved here",

@@ -375,7 +375,6 @@ claude_docker_update_gitignore() {
     # Array of patterns to add to gitignore
     local patterns=(
         "docker-compose.override.yml"
-        ".mcp.json"
         ".claude*"
         ".hive-mind"
         "playwright*"

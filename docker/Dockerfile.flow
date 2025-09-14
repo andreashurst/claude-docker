@@ -97,10 +97,15 @@ RUN npm install -g playwright@latest @playwright/test && \
     # Set NODE_PATH for global module resolution
     echo 'export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"' >> /etc/profile && \
     echo 'export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"' >> /etc/bash.bashrc && \
-    # Install all Playwright browsers (chromium, firefox, webkit)
+    # Set PLAYWRIGHT_BROWSERS_PATH for consistent browser location
+    export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers && \
+    mkdir -p /opt/playwright-browsers && \
+    # Install all Playwright browsers to a fixed location
     npx playwright install chromium firefox webkit && \
-    # Install browser dependencies (should already be installed above)
-    npx playwright install-deps
+    # Install browser dependencies
+    npx playwright install-deps && \
+    # Make browsers accessible to all users
+    chmod -R 755 /opt/playwright-browsers
 
 # Install additional Flow-specific tools (skip if packages don't exist)
 # Note: These packages may not exist in npm registry
@@ -127,7 +132,6 @@ RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p /home/claude/.config && \
     mkdir -p /home/claude/.claude && \
     mkdir -p /home/claude/.npm-global && \
-    mkdir -p /home/claude/.cache/ms-playwright && \
     chown -R claude:claude /home/claude
 
 # Copy context files to claude user directory
@@ -167,7 +171,7 @@ RUN mkdir -p /home/claude/.npm-global && \
     echo 'export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"' >> /etc/bash.bashrc
 
 # Environment variables for Flow
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers \
     DENO_INSTALL="/usr/local/deno" \
     NPM_CONFIG_CACHE=/tmp/npm-cache \
     NODE_ENV=development \

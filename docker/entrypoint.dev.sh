@@ -116,20 +116,6 @@ fi
 # SETUP CLAUDE ENVIRONMENT
 # ═══════════════════════════════════════════════════════════
 
-# Install command blockers (ONLY works in Docker, safe for host)
-# This creates /usr/local/bin/apk blocker to prevent container modifications
-if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
-    # Only block APK, not npm/yarn/pnpm/git
-    cat > /usr/local/bin/apk << 'BLOCKER'
-#!/bin/sh
-echo "⚠️  Use the host system for APK package management!"
-echo "   This is blocked to prevent accidental container modifications."
-exit 1
-BLOCKER
-    chmod +x /usr/local/bin/apk
-    echo "✅ APK blocker installed (container safety)"
-fi
-
 # Create .claude directory structure
 mkdir -p $ROOT/.claude/{docs,scripts,config}
 chown -R claude:claude $ROOT/.claude

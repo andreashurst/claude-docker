@@ -8,6 +8,8 @@
 export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
 # Set NODE_PATH for global modules
 export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
+# Set Playwright browsers path
+export PLAYWRIGHT_BROWSERS_PATH="/opt/playwright-browsers"
 
 ROOT="/var/www/html"
 
@@ -149,9 +151,9 @@ fi
 if command -v playwright >/dev/null 2>&1; then
     PLAYWRIGHT_VERSION=$(playwright --version 2>/dev/null | head -n1)
     echo "  ✓ Playwright operational ($PLAYWRIGHT_VERSION)"
-    echo "  ✓ Browsers: Chromium, Firefox, WebKit installed"
+    echo "  ✓ Browsers installed at: $PLAYWRIGHT_BROWSERS_PATH"
 else
-    echo "  ⚠ Playwright not found - you may need to run: npm install -g playwright"
+    echo "  ⚠ Playwright not found - check Docker build logs"
 fi
 
 # ═══════════════════════════════════════════════════════════
@@ -243,7 +245,7 @@ cat > /home/claude/.bashrc << 'EOF'
 # Set PATH
 export PATH="/home/claude/.deno/bin:/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
 export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
-export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
+export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
 
 # Playwright has all browsers installed and ready
