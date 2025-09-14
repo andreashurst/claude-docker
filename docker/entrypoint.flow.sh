@@ -19,15 +19,69 @@ echo "🔧 Setting up localhost mapping..."
 HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
-    sed -i '/[[:space:]]localhost/d' /etc/hosts
-    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+    # Start with localhost mapping
+    echo "$HOST_IP localhost" > /etc/hosts
 
-    # Map localhost to Docker host (single entry)
-    echo "$HOST_IP localhost" >> /etc/hosts
-    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
-    echo "   Now 'curl localhost:PORT' reaches your host machine"
-    echo "   Use the port defined in your docker-compose.yml"
+    # Check for DDEV configuration
+    if [ -f "/var/www/html/.ddev/config.yaml" ]; then
+        echo "🔧 Detected DDEV project, adding domain mappings..."
+
+        # Extract project name
+        PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+
+        # Extract TLD (default is ddev.site if not specified)
+        PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d' ' -f2 | tr -d '"' | head -n1)
+        if [ -z "$PROJECT_TLD" ]; then
+            PROJECT_TLD="ddev.site"
+        fi
+
+        # Primary domain with correct TLD
+        if [ -n "$PROJECT_NAME" ]; then
+            echo "$HOST_IP ${PROJECT_NAME}.${PROJECT_TLD}" >> /etc/hosts
+            echo "   ✓ Added ${PROJECT_NAME}.${PROJECT_TLD}"
+        fi
+
+        # Additional FQDNs
+        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d':' -f2- | tr -d '[]"' | tr ',' '\n')
+        if [ -n "$ADDITIONAL_FQDNS" ]; then
+            for domain in $ADDITIONAL_FQDNS; do
+                domain=$(echo $domain | tr -d ' ')
+                if [ -n "$domain" ]; then
+                    echo "$HOST_IP $domain" >> /etc/hosts
+                    echo "   ✓ Added $domain"
+                fi
+            done
+        fi
+
+        # Additional hostnames (these also use the project_tld)
+        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d':' -f2- | tr -d '[]"' | tr ',' '\n')
+        if [ -n "$ADDITIONAL_HOSTNAMES" ]; then
+            for hostname in $ADDITIONAL_HOSTNAMES; do
+                hostname=$(echo $hostname | tr -d ' ')
+                if [ -n "$hostname" ]; then
+                    # Additional hostnames get the TLD appended
+                    echo "$HOST_IP ${hostname}.${PROJECT_TLD}" >> /etc/hosts
+                    echo "   ✓ Added ${hostname}.${PROJECT_TLD}"
+                fi
+            done
+        fi
+    fi
+
+    # Check for .claude-domains file for custom domain mappings
+    if [ -f "/var/www/html/.claude-domains" ]; then
+        echo "🔧 Found .claude-domains file, adding custom domains..."
+        while IFS= read -r domain || [ -n "$domain" ]; do
+            # Skip empty lines and comments
+            if [ -n "$domain" ] && [[ ! "$domain" =~ ^# ]]; then
+                domain=$(echo $domain | tr -d '\r' | tr -d ' ')
+                echo "$HOST_IP $domain" >> /etc/hosts
+                echo "   ✓ Added $domain"
+            fi
+        done < "/var/www/html/.claude-domains"
+    fi
+
+    echo "✅ Host mapping complete!"
+    echo "   localhost and all configured domains now reach your host machine"
 else
     echo "❌ Could not determine Docker host IP!"
 fi
@@ -64,21 +118,30 @@ echo "🔧 Setting up Flow environment..."
 
 # Install command blockers (ONLY works in Docker, safe for host)
 if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
-    # Only block APK, not npm/yarn/pnpm/git
-    cat > /usr/local/bin/apk << 'BLOCKER'
+    # Block APT package manager to prevent container modifications
+    cat > /usr/local/bin/apt << 'BLOCKER'
 #!/bin/sh
-echo "⚠️  Use the host system for APK package management!"
+echo "⚠️  Use the host system for APT package management!"
 echo "   This is blocked to prevent accidental container modifications."
 exit 1
 BLOCKER
-    chmod +x /usr/local/bin/apk
-    echo "✅ APK blocker installed (container safety)"
+    chmod +x /usr/local/bin/apt
+
+    cat > /usr/local/bin/apt-get << 'BLOCKER'
+#!/bin/sh
+echo "⚠️  Use the host system for APT package management!"
+echo "   This is blocked to prevent accidental container modifications."
+exit 1
+BLOCKER
+    chmod +x /usr/local/bin/apt-get
+    echo "✅ APT blockers installed (container safety)"
 fi
 
 # Test if Playwright is working (installed via npm in Dockerfile)
 if command -v playwright >/dev/null 2>&1; then
     PLAYWRIGHT_VERSION=$(playwright --version 2>/dev/null | head -n1)
     echo "  ✓ Playwright operational ($PLAYWRIGHT_VERSION)"
+    echo "  ✓ Browsers: Chromium, Firefox, WebKit installed"
 else
     echo "  ⚠ Playwright not found - you may need to run: npm install -g playwright"
 fi
@@ -165,12 +228,13 @@ export PATH="/home/claude/.deno/bin:/home/claude/.npm-global/bin:/usr/local/bin:
 export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
 export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
 
-# Playwright is available directly (no wrapper needed)
-# Curl uses the standard Alpine curl
+# Playwright has all browsers installed and ready
+# Curl uses the standard Debian curl
 
 # Package managers are now available in the container
 # Only block system package manager to prevent container modifications
-alias apk='echo "⚠️  Use the host system for APK package management!" && false'
+alias apt='echo "⚠️  Use the host system for APT package management!" && false'
+alias apt-get='echo "⚠️  Use the host system for APT package management!" && false'
 
 # Standard aliases
 alias ll='ls -la'

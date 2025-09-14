@@ -15,15 +15,69 @@ echo "🔧 Setting up localhost mapping..."
 HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
-    sed -i '/[[:space:]]localhost/d' /etc/hosts
-    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+    # Start with localhost mapping
+    echo "$HOST_IP localhost" > /etc/hosts
 
-    # Map localhost to Docker host (single entry)
-    echo "$HOST_IP localhost" >> /etc/hosts
-    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
-    echo "   Now 'curl localhost:PORT' reaches your host machine"
-    echo "   Use the port defined in your docker-compose.yml"
+    # Check for DDEV configuration
+    if [ -f "/var/www/html/.ddev/config.yaml" ]; then
+        echo "🔧 Detected DDEV project, adding domain mappings..."
+
+        # Extract project name
+        PROJECT_NAME=$(grep "^name:" /var/www/html/.ddev/config.yaml | cut -d' ' -f2 | tr -d '"' | head -n1)
+
+        # Extract TLD (default is ddev.site if not specified)
+        PROJECT_TLD=$(grep "^project_tld:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d' ' -f2 | tr -d '"' | head -n1)
+        if [ -z "$PROJECT_TLD" ]; then
+            PROJECT_TLD="ddev.site"
+        fi
+
+        # Primary domain with correct TLD
+        if [ -n "$PROJECT_NAME" ]; then
+            echo "$HOST_IP ${PROJECT_NAME}.${PROJECT_TLD}" >> /etc/hosts
+            echo "   ✓ Added ${PROJECT_NAME}.${PROJECT_TLD}"
+        fi
+
+        # Additional FQDNs
+        ADDITIONAL_FQDNS=$(grep "^additional_fqdns:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d':' -f2- | tr -d '[]"' | tr ',' '\n')
+        if [ -n "$ADDITIONAL_FQDNS" ]; then
+            for domain in $ADDITIONAL_FQDNS; do
+                domain=$(echo $domain | tr -d ' ')
+                if [ -n "$domain" ]; then
+                    echo "$HOST_IP $domain" >> /etc/hosts
+                    echo "   ✓ Added $domain"
+                fi
+            done
+        fi
+
+        # Additional hostnames (these also use the project_tld)
+        ADDITIONAL_HOSTNAMES=$(grep "^additional_hostnames:" /var/www/html/.ddev/config.yaml 2>/dev/null | cut -d':' -f2- | tr -d '[]"' | tr ',' '\n')
+        if [ -n "$ADDITIONAL_HOSTNAMES" ]; then
+            for hostname in $ADDITIONAL_HOSTNAMES; do
+                hostname=$(echo $hostname | tr -d ' ')
+                if [ -n "$hostname" ]; then
+                    # Additional hostnames get the TLD appended
+                    echo "$HOST_IP ${hostname}.${PROJECT_TLD}" >> /etc/hosts
+                    echo "   ✓ Added ${hostname}.${PROJECT_TLD}"
+                fi
+            done
+        fi
+    fi
+
+    # Check for .claude-domains file for custom domain mappings
+    if [ -f "/var/www/html/.claude-domains" ]; then
+        echo "🔧 Found .claude-domains file, adding custom domains..."
+        while IFS= read -r domain || [ -n "$domain" ]; do
+            # Skip empty lines and comments
+            if [ -n "$domain" ] && [[ ! "$domain" =~ ^# ]]; then
+                domain=$(echo $domain | tr -d '\r' | tr -d ' ')
+                echo "$HOST_IP $domain" >> /etc/hosts
+                echo "   ✓ Added $domain"
+            fi
+        done < "/var/www/html/.claude-domains"
+    fi
+
+    echo "✅ Host mapping complete!"
+    echo "   localhost and all configured domains now reach your host machine"
 else
     echo "❌ Could not determine Docker host IP!"
 fi

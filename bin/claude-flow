@@ -16,8 +16,8 @@ CURRENT_DIR=$(pwd)
 
 # Create compose files for Flow
 claude_docker_create_files() {
-    # Create minimal docker-compose.yml if needed
-    claude_docker_create_base_compose
+    # For claude-flow, create docker-compose.yml with webserver if it doesn't exist
+    claude_docker_create_flow_compose_with_webserver
 
     # Ask about override file using library function
     claude_docker_ask_replace_override || return 0

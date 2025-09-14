@@ -79,6 +79,178 @@ EOF
     fi
 }
 
+# Create docker-compose.yml with webserver for claude-flow
+claude_docker_create_flow_compose_with_webserver() {
+    # Function to find a free port
+    find_free_port() {
+        local port=8080
+        while [ $port -le 9000 ]; do
+            # Check if port is in use on host
+            if ! nc -z localhost $port 2>/dev/null; then
+                # Also check if port is in docker-compose.yml
+                if [ -f "docker-compose.yml" ]; then
+                    if ! grep -q "\"$port:" docker-compose.yml && ! grep -q "'$port:" docker-compose.yml; then
+                        echo $port
+                        return
+                    fi
+                else
+                    echo $port
+                    return
+                fi
+            fi
+            port=$((port + 1))
+        done
+        echo "8888"  # Fallback
+    }
+
+    # Only add test webserver if docker-compose.yml doesn't exist
+    if [ ! -f "docker-compose.yml" ]; then
+        # Find a free port
+        FREE_PORT=$(find_free_port)
+
+        # Create minimal compose with test server on free port
+        cat > "docker-compose.yml" << EOF
+# Docker Compose for Claude Flow with test webserver
+services:
+  claude-test-server:
+    image: nginx:alpine
+    container_name: claude-test-server
+    ports:
+      - "$FREE_PORT:80"
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+    restart: unless-stopped
+EOF
+        echo "✅ Created docker-compose.yml with test server on port $FREE_PORT"
+        WEBSERVER_PORT="$FREE_PORT"
+    else
+        # docker-compose.yml exists - don't modify it
+        echo "ℹ️  Using existing docker-compose.yml"
+        echo "   If you need a test server, manually add claude-test-server"
+        WEBSERVER_PORT="80"  # Assume existing setup uses standard port
+    fi
+
+        # Create public folder and index.html if they don't exist
+        if [ ! -d "public" ]; then
+            mkdir -p public
+            # Note: We use regular heredoc (not quoted) to allow variable substitution
+            cat > "public/index.html" << HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Flow - Testing Environment</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #764ba2;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7f7f7;
+            border-radius: 5px;
+        }
+        code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        .test-section {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+        .command {
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Claude Flow Testing Environment</h1>
+
+        <div class="section">
+            <h2>✅ Test Webserver is Running!</h2>
+            <p>If you can see this page, your test webserver is successfully running on port $WEBSERVER_PORT.</p>
+            <p><strong>Note:</strong> Port $WEBSERVER_PORT was automatically selected as it was free.</p>
+        </div>
+
+        <div class="section test-section">
+            <h2>🧪 Quick Test Commands</h2>
+            <p>Run these from inside the Claude Flow container:</p>
+            <div class="command">curl localhost:$WEBSERVER_PORT</div>
+            <div class="command">curl http://localhost:$WEBSERVER_PORT</div>
+            <div class="command">playwright test</div>
+            <div class="command">playwright codegen http://localhost</div>
+        </div>
+
+        <div class="section">
+            <h2>📁 How to Use</h2>
+            <ul>
+                <li>Place your HTML/CSS/JS files in the <code>public/</code> folder</li>
+                <li>They will be immediately available at <code>http://localhost/</code></li>
+                <li>The webserver auto-reloads when files change</li>
+                <li>Access from Claude Flow: <code>curl localhost</code></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Playwright Testing</h2>
+            <p>Create test files in <code>playwright-tests/</code> folder:</p>
+            <div class="command">
+// Example test
+test('homepage loads', async ({ page }) => {
+  await page.goto('http://localhost');
+  await expect(page).toHaveTitle(/Claude Flow/);
+});
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Next Steps</h2>
+            <ol>
+                <li>Edit this file: <code>public/index.html</code></li>
+                <li>Add your application files to <code>public/</code></li>
+                <li>Write Playwright tests in <code>playwright-tests/</code></li>
+                <li>Run tests with <code>playwright test</code></li>
+            </ol>
+        </div>
+
+        <p style="text-align: center; color: #666; margin-top: 30px;">
+            Claude Flow v3.2.0 | <a href="https://github.com/andreashurst/claude-docker">GitHub</a>
+        </p>
+    </div>
+</body>
+</html>
+HTML
+            echo "✅ Created public/index.html with howto guide on port $WEBSERVER_PORT"
+        fi
+    fi
+}
+
 
 # Ask to replace override file
 claude_docker_ask_replace_override() {
@@ -103,12 +275,9 @@ echo "🔧 Setting up localhost mapping..."
 HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Remove ALL existing localhost entries (both 127.0.0.1 and any others)
-    sed -i '/[[:space:]]localhost/d' /etc/hosts
-    sed -i '/^localhost[[:space:]]/d' /etc/hosts
+    # Simply overwrite /etc/hosts with ONE line - localhost pointing to host
+    echo "$HOST_IP localhost" > /etc/hosts
 
-    # Map localhost to Docker host (single entry)
-    echo "$HOST_IP localhost" >> /etc/hosts
     echo "✅ Mapped localhost to Docker host ($HOST_IP)"
     echo "   Now 'curl localhost:PORT' reaches your host machine"
     echo "   Use the port defined in your docker-compose.yml"

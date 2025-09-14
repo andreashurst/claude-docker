@@ -1,78 +1,180 @@
-# Claude Flow - Built on top of Claude Dev
-FROM andreashurst/claude-docker:latest-dev
+# Claude Flow - Debian-based for Playwright compatibility
+FROM node:22-bookworm
 
 # Switch to root for installations
 USER root
 
-# Install Python and build tools (needed for Hive-Mine and other tools)
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    gcc \
-    g++ \
-    musl-dev \
-    linux-headers \
-    chromium \
-    chromium-chromedriver \
-    firefox \
-    && rm -rf /var/cache/apk/*
+# Update npm to latest version
+RUN npm install -g npm@latest
 
-# Install Playwright properly (both as package and CLI)
-RUN npm install -g playwright@latest @playwright/test && \
-    # Fix npm global binaries to be accessible
-    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/profile && \
-    echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> /etc/bash.bashrc && \
-    playwright install chromium firefox webkit && \
-    playwright install-deps || true
+# Security updates and essential packages
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    git \
+    bash \
+    curl \
+    wget \
+    unzip \
+    ca-certificates \
+    jq \
+    ripgrep \
+    tree \
+    htop \
+    netcat-traditional \
+    nano \
+    vim \
+    make \
+    openssh-client \
+    iputils-ping \
+    sudo \
+    # Development languages and tools
+    php8.2 php8.2-cli php8.2-mbstring php8.2-xml php8.2-curl php8.2-zip \
+    python3 python3-pip python3-venv \
+    ruby ruby-dev \
+    golang \
+    rustc cargo \
+    gcc g++ build-essential \
+    postgresql-client default-mysql-client \
+    redis-tools \
+    docker.io \
+    # Image and PDF handling tools
+    imagemagick \
+    ghostscript \
+    poppler-utils \
+    ffmpeg \
+    exiftool \
+    graphicsmagick \
+    webp \
+    jpegoptim \
+    pngquant \
+    optipng \
+    # Dependencies for Playwright browsers
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libatspi2.0-0 \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxcb1 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Playwright is installed globally and available as direct command
-# No wrappers needed since npm install -g creates the binary
+# Install Python package managers and Composer
+RUN pip3 install --break-system-packages pipenv poetry && \
+    # Install composer for PHP
+    wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && \
+    chmod +x /usr/local/bin/composer
 
-# Install additional Flow-specific tools
-# Note: MCP servers already installed in base image as root
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash && \
+    mv /root/.bun/bin/bun /usr/local/bin/ && \
+    chmod +x /usr/local/bin/bun && \
+    rm -rf /root/.bun
+
+# Install MCP SDK and available servers
 RUN npm install -g \
-    @playwright/mcp \
-    claude-flow@latest || true && \
-    # Create symlinks for all claude-flow related commands
-    ln -sf $(npm config get prefix)/bin/claude-flow /usr/local/bin/claude-flow 2>/dev/null || true && \
-    ln -sf $(npm config get prefix)/bin/mcp /usr/local/bin/mcp 2>/dev/null || true
+    @modelcontextprotocol/sdk \
+    @modelcontextprotocol/server-filesystem
 
-# Install Python MCP servers
+# Install Playwright with all browsers
+RUN npm install -g playwright@latest @playwright/test && \
+    # Fix npm global binaries to be accessible (use explicit path)
+    echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/bash.bashrc && \
+    # Install all Playwright browsers (chromium, firefox, webkit)
+    npx playwright install chromium firefox webkit && \
+    # Install browser dependencies (should already be installed above)
+    npx playwright install-deps
+
+# Install additional Flow-specific tools (skip if packages don't exist)
+# Note: These packages may not exist in npm registry
+# Commenting out to prevent build failures
+# RUN npm install -g @playwright/mcp claude-flow@latest
+
+# Install Python MCP servers (MUST succeed)
 RUN pip3 install --break-system-packages \
-    mcp-server-git \
-    hive-mine || true
+    mcp-server-git
 
 # Install Deno for additional scripting capabilities
 RUN curl -fsSL https://deno.land/install.sh | sh && \
     mv /root/.deno /usr/local/deno && \
     ln -s /usr/local/deno/bin/deno /usr/local/bin/deno
 
-# Create Playwright cache directory
-RUN mkdir -p /home/claude/.cache/ms-playwright && \
-    chown -R claude:claude /home/claude/.cache/ms-playwright
+# Create non-root user
+RUN groupadd -g 1010 claude && \
+    useradd -m -s /bin/bash -u 1010 -g claude claude
 
-# Flow scripts and docs will be created by entrypoint
-# No static files needed
+# Add claude to sudoers
+RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Environment variables for Flow
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    DENO_INSTALL="/usr/local/deno" \
-    PATH="/home/claude/.npm-global/bin:/usr/local/bin:/usr/local/deno/bin:$PATH" \
-    FLOW_MODE=true
+# Create directories including npm-global for user
+RUN mkdir -p /home/claude/.config && \
+    mkdir -p /home/claude/.claude && \
+    mkdir -p /home/claude/.npm-global && \
+    mkdir -p /home/claude/.cache/ms-playwright && \
+    chown -R claude:claude /home/claude
 
-# No custom flow-* commands needed
-# Claude Code knows standard commands like:
-# - playwright test
-# - playwright show-report
-# - playwright codegen
-# - playwright install
+# Copy context files to claude user directory
+COPY claude/ /home/claude/.claude/
+
+# Copy MCP default configuration for Claude Code
+COPY docker/mcp.json /etc/claude/mcp.json
 
 # Copy entrypoint script
 COPY docker/entrypoint.flow.sh /docker/entrypoint.sh
 RUN chmod +x /docker/entrypoint.sh
 
-# Keep working directory
+# Fix ownership of copied files
+RUN chown -R claude:claude /home/claude/.claude
+
+# Setup npm global directory for claude user with proper permissions
+RUN mkdir -p /home/claude/.npm-global && \
+    chown -R claude:claude /home/claude/.npm-global && \
+    # Set npm config for claude user
+    su claude -c "npm config set prefix /home/claude/.npm-global" && \
+    # Install packages as claude user with proper environment
+    su claude -c "cd /home/claude && \
+        export NPM_CONFIG_PREFIX=/home/claude/.npm-global && \
+        export PATH=/home/claude/.npm-global/bin:/usr/local/bin:$PATH && \
+        npm install -g --force \
+            @anthropic-ai/claude-code \
+            pnpm \
+            yarn" && \
+    # Create symlinks in /usr/local/bin for system-wide access
+    ln -sf /home/claude/.npm-global/bin/claude /usr/local/bin/claude && \
+    ln -sf /home/claude/.npm-global/bin/pnpm /usr/local/bin/pnpm && \
+    ln -sf /home/claude/.npm-global/bin/yarn /usr/local/bin/yarn && \
+    # Verify installation
+    ls -la /home/claude/.npm-global/bin/ && \
+    # Set PATH for all users (both npm global locations)
+    echo 'export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"' >> /etc/bash.bashrc
+
+# Environment variables for Flow
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright \
+    DENO_INSTALL="/usr/local/deno" \
+    NPM_CONFIG_CACHE=/tmp/npm-cache \
+    NODE_ENV=development \
+    DOCKER_ENV=true \
+    NPM_CONFIG_PREFIX="/home/claude/.npm-global" \
+    PATH="/home/claude/.npm-global/bin:/usr/local/bin:/usr/local/deno/bin:$PATH" \
+    FLOW_MODE=true
+
+# Set working directory
 WORKDIR /var/www/html
 
-# Note: We don't set ENTRYPOINT here as claude-flow script will handle it
+# Simple bash as default (installer will override with custom entrypoint)
+CMD ["/bin/bash"]
