@@ -30,8 +30,9 @@ claude_docker_create_files() {
 
 # Main function
 main() {
-    echo "Claude Docker v$VERSION"
-    echo "========================"
+    echo "##################################################################"
+    echo "🔗 Claude Code in Docker v$VERSION"
+    echo "##################################################################"
 
     claude_docker_check
 
@@ -48,11 +49,11 @@ main() {
 case "${1:-}" in
     -v|--version) echo "v$VERSION"; exit 0 ;;
     --stop) docker compose stop $CONTAINER_NAME; exit 0 ;;
-    --clean) 
+    --clean)
         docker compose down -v  # -v removes volumes too
         rm -f docker-compose.override.yml
         echo "✅ Removed container, volume and config"
-        exit 0 
+        exit 0
         ;;
     --root)
         echo "🔐 Starting as root (backdoor mode)..."

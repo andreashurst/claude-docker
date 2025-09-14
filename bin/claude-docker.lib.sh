@@ -379,8 +379,6 @@ claude_docker_update_gitignore() {
         ".claude*"
         ".hive-mind"
         "playwright*"
-        "*.sqlite"
-        "*.sqlite3"
         "*.tmp"
         ".DS_Store"
         "Thumbs.db"
@@ -552,10 +550,9 @@ claude_docker_connect() {
 
     # Check if container is already running
     if claude_docker_is_running "$container_name"; then
-        echo "✅ Container already running!"
-        echo "🔗 Connecting to existing $container_name container as claude user..."
+        echo "🔗 Connecting to running $container_name container as claude user..."
         docker compose exec -u claude "$container_name" bash
-        echo "✅ Session ended"
+        echo "✅ Thank's"
     else
         echo "Starting containers..."
         docker compose up -d
@@ -565,7 +562,7 @@ claude_docker_connect() {
             echo "🔗 Connecting to $container_name container as claude user..."
             echo "📁 Credentials stored in Docker volume: claude-${container_name##*-}-data"
             docker compose exec -u claude "$container_name" bash
-            echo "✅ Session ended"
+            echo "✅ Thank's"
         else
             echo "Failed to start. Check logs:"
             docker compose logs "$container_name"
@@ -581,106 +578,13 @@ claude_docker_connect_as_root() {
       echo "✅ Connecting as root"
       docker compose exec "$container_name" bash
   else
-      echo "Connecting as root failed. Check logs:"
+      echo "Connecting as root failed:"
       docker compose logs "$container_name"
       exit 1
   fi
 }
 
 claude_docker_playwright_config() {
-    if [ ! -f "playwright.config.js" ] && [ ! -f "playwright.config.ts" ]; then
-        echo "📝 Creating default playwright.config.js (customize as needed)..."
-        cat > "playwright.config.js" << 'PWCONFIG'
-// @ts-check
-const { defineConfig, devices } = require('@playwright/test');
-
-/**
- * Playwright configuration for Claude Flow
- * @see https://playwright.dev/docs/test-configuration
- */
-module.exports = defineConfig({
-  testDir: './playwright-tests',
-  outputDir: './playwright-results',
-
-  // Maximum time one test can run
-  timeout: 30 * 1000,
-
-  // Run tests in parallel
-  fullyParallel: true,
-
-  // Fail the build on CI if you accidentally left test.only
-  forbidOnly: !!process.env.CI,
-
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
-
-  // Parallel workers on CI, single on local
-  workers: process.env.CI ? 1 : undefined,
-
-  // Reporter configuration
-  reporter: [
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['list'],
-    ['json', { outputFile: 'playwright-results/results.json' }]
-  ],
-
-  use: {
-    // Base URL for all tests
-    baseURL: process.env.BASE_URL || 'http://localhost',
-
-    // Collect trace when retrying the failed test
-    trace: 'on-first-retry',
-
-    // Screenshot on failure
-    screenshot: {
-      mode: 'only-on-failure',
-      fullPage: true
-    },
-
-    // Video on failure
-    video: 'retain-on-failure',
-
-    // Artifacts folder
-    artifactsPath: './playwright-results/artifacts'
-  },
-
-  // Configure projects for major browsers
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    // Mobile testing
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-  ],
-
-  // Local dev server (if needed)
-  webServer: process.env.NO_WEBSERVER ? undefined : {
-    command: 'echo "Using localhost from host machine"',
-    url: 'http://localhost',
-    reuseExistingServer: true,
-  },
-});
-PWCONFIG
-        echo "✅ Created playwright.config.js - you can customize it as needed"
-    else
-        echo "✅ Using existing playwright.config.js/ts"
-    fi
 
     # Setup test directories with playwright prefix
     echo "📁 Setting up Playwright directories..."
@@ -688,18 +592,4 @@ PWCONFIG
     mkdir -p playwright-results
     mkdir -p playwright-report
 
-    # Simple gitignore - just playwright*
-    if [ -f ".gitignore" ]; then
-        grep -q "^playwright" .gitignore || echo -e "\n# Playwright artifacts\nplaywright*" >> .gitignore
-    else
-        cat > .gitignore << 'GITIGNORE'
-# Playwright artifacts
-playwright*
-
-# Docker
-docker-compose.override.yml
-
-# Claude files
-GITIGNORE
-    fi
 }

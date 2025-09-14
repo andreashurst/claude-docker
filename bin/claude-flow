@@ -28,41 +28,14 @@ claude_docker_create_files() {
     # Create docker-compose.override.yml using library
     claude_docker_create_override "flow" "$CURRENT_DIR"
 
-    # Create README for Flow
-    cat > "README-Claude-Flow.md" << EOF
-# Claude Flow Environment
-
-## Features:
-- 🎭 Playwright for browser automation
-- 🔬 Hive-Mine for data analysis
-- 🧪 Advanced testing capabilities
-- 🚀 All Claude Dev features included
-
-## Quick Start:
-\`\`\`bash
-playwright test          # Run Playwright tests
-playwright test --ui    # Open test UI
-playwright test --debug # Debug mode
-playwright codegen      # Generate test code
-\`\`\`
-
-## Testing localhost:
-- \`curl localhost\` - Works automatically
-- \`ctest\` - Quick test
-
-## First time setup:
-1. \`claude auth login\` (if needed)
-2. \`playwright install\` to setup browsers
-EOF
-
     claude_docker_update_gitignore
 }
 
 # Main function
 main() {
-    echo "🎭 Claude Flow v$VERSION"
-    echo "========================"
-    echo "Advanced testing environment with Playwright"
+    echo "##################################################################"
+    echo "🔗 Claude-Flow in Docker v$VERSION"
+    echo "##################################################################"
     echo ""
 
     claude_docker_check
@@ -82,11 +55,11 @@ main() {
 case "${1:-}" in
     -v|--version) echo "v$VERSION"; exit 0 ;;
     --stop) docker compose stop $CONTAINER_NAME; exit 0 ;;
-    --clean) 
+    --clean)
         docker compose down -v  # -v removes volumes too
         rm -f docker-compose.override.yml playwright.config.js
         echo "✅ Removed container, volume and config"
-        exit 0 
+        exit 0
         ;;
     --root)
         echo "🔐 Starting as root (backdoor mode)..."

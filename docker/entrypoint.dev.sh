@@ -15,8 +15,14 @@ echo "🔧 Setting up localhost mapping..."
 HOST_IP=$(ip route | grep default | awk '{print $3}')
 
 if [ -n "$HOST_IP" ]; then
-    # Start with localhost mapping
+    # Backup original /etc/hosts
+    cp /etc/hosts /etc/hosts.bak
+
+    # Start with localhost mapping in first line
     echo "$HOST_IP localhost" > /etc/hosts
+
+    # Append the original content
+    cat /etc/hosts.bak >> /etc/hosts
 
     # Check for DDEV configuration
     if [ -f "/var/www/html/.ddev/config.yaml" ]; then
