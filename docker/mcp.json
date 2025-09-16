@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "filesystem": {
-      "command": "mcp-server-filesystem",
-      "args": ["/var/www/html"],
+      "command": "node",
+      "args": ["/usr/local/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "/var/www/html"],
       "description": "File system operations and management"
     },
     "memory": {
-      "command": "mcp-server-memory",
-      "args": [],
+      "command": "node",
+      "args": ["/usr/local/lib/node_modules/@modelcontextprotocol/server-memory/dist/index.js"],
       "description": "In-memory data storage and caching"
     },
     "git": {
@@ -16,17 +16,54 @@
       "description": "Git repository operations"
     },
     "sqlite": {
-      "command": "mcp-server-sqlite",
+      "command": "mcp-sqlite",
       "args": ["--data-dir", "/home/claude/.claude/databases"],
       "description": "SQLite database management"
+    },
+    "webserver-env": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/webserver-env.js"],
+      "description": "External webserver environment monitoring (read-only, no cache clearing)"
+    },
+    "playwright-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/playwright-context.js"],
+      "description": "Cached Playwright framework context and documentation"
+    },
+    "playwright-advanced-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/playwright-advanced-context.js"],
+      "description": "Advanced Playwright patterns and enterprise testing strategies"
+    },
+    "tailwind-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/tailwind-context.js"],
+      "description": "Cached Tailwind CSS v4.1 context and utilities"
+    },
+    "daisyui-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/daisyui-context.js"],
+      "description": "Cached DaisyUI component library context"
+    },
+    "vite-hmr-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/vite-hmr-context.js"],
+      "description": "Cached Vite HMR configuration and troubleshooting"
+    },
+    "claude-flow-context": {
+      "command": "node",
+      "args": ["/var/www/html/claude/mcp-servers/claude-flow-context.js"],
+      "description": "Cached Claude Flow automation framework context"
     }
   },
   "contextFiles": {
-    "playwright-directories": "/home/claude/.claude/context/playwright-directories.json",
     "playwright": "/home/claude/.claude/context/playwright.mcp.json",
+    "playwright-advanced": "/home/claude/.claude/context/playwright-advanced.mcp.json",
+    "playwright-directories": "/home/claude/.claude/context/playwright-directories.json",
     "tailwind": "/home/claude/.claude/context/tailwind-v4.1.mcp.json",
     "daisyui": "/home/claude/.claude/context/daisyui.mcp.json",
-    "claude-flow": "/home/claude/.claude/context/claude-flow.mcp.json"
+    "claude-flow": "/home/claude/.claude/context/claude-flow.mcp.json",
+    "vite-hmr": "/home/claude/.claude/context/vite-hmr.mcp.json"
   },
   "notes": "Additional MCP servers like @playwright/mcp, hive-mine, etc. can be installed and configured as needed per project"
 }

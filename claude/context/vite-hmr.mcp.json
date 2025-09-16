@@ -1,0 +1,32 @@
+{
+  "name": "vite-hmr",
+  "version": "1.0.0",
+  "description": "Proper Vite HMR handling for Playwright - wait for styles to load",
+  "condition": "Only loaded when vite.config.js or vite.config.ts exists",
+  "context": {
+    "problem": "Vite HMR can cause missing CSS when Playwright accesses the page",
+    "solution": "Wait for stylesheets and fonts to be fully loaded",
+    "working_solutions": {
+      "wait_for_stylesheets": {
+        "description": "Wait for all stylesheets to be loaded",
+        "code": "await page.goto('http://localhost:5173');\n\n// Wait for all stylesheets to be loaded\nawait page.waitForFunction(() => {\n  const stylesheets = document.querySelectorAll('link[rel=\"stylesheet\"]');\n  return Array.from(stylesheets).every(link => link.sheet);\n});"
+      },
+      "wait_for_fonts": {
+        "description": "Wait for fonts to be ready",
+        "code": "await page.waitForFunction(() => document.fonts.ready);"
+      },
+      "wait_for_specific_styles": {
+        "description": "Wait for specific CSS to be applied",
+        "code": "await page.waitForFunction(() => {\n  const element = document.querySelector('.your-element');\n  if (!element) return false;\n  const styles = window.getComputedStyle(element);\n  return styles.display !== 'none' && styles.visibility !== 'hidden';\n});"
+      },
+      "complete_solution": {
+        "description": "Combined approach for Vite dev server",
+        "code": "// Navigate to Vite dev server\nawait page.goto('http://localhost:5173', { waitUntil: 'load' });\n\n// Wait for fonts\nawait page.waitForFunction(() => document.fonts.ready);\n\n// Wait for all stylesheets\nawait page.waitForFunction(() => {\n  const links = document.querySelectorAll('link[rel=\"stylesheet\"]');\n  return Array.from(links).every(link => link.sheet);\n});\n\n// Now take screenshot or perform tests\nawait page.screenshot({ path: 'playwright/results/screenshot.png' });"
+      },
+      "simple_networkidle": {
+        "description": "Simple approach using networkidle",
+        "code": "await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });"
+      }
+    }
+  }
+}

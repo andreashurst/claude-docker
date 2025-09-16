@@ -19,9 +19,6 @@ claude_docker_create_files() {
     # Create base docker-compose.yml if needed
     claude_docker_create_base_compose
 
-    # Ask about override
-    claude_docker_ask_replace_override || return 0
-
     # Create docker-compose.override.yml using library
     claude_docker_create_override "dev" "$CURRENT_DIR"
 

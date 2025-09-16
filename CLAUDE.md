@@ -44,7 +44,8 @@ claude-flow                          # Start flow container with testing tools
   - Playwright and @playwright/test for browser automation
   - Chromium, Firefox, and WebKit browsers
   - Deno runtime for additional scripting
-  - Python MCP servers (mcp-server-git, hive-mine)
+  - Python MCP servers (mcp-server-git)
+  - Claude Flow and Ruv Swarm for advanced automation
 - **entrypoint.dev.sh** and **entrypoint.flow.sh**: Container initialization scripts that handle localhost mapping and environment setup
 
 ### Key Design Decisions
@@ -72,8 +73,9 @@ The containers now include all major package managers and development tools:
   - `mcp-server-memory`: In-memory data storage
   - `mcp-server-git`: Git repository operations
   - `mcp-server-sqlite`: SQLite database management
-  - Configuration file at `/etc/claude/mcp.json` (copied to project as `.mcp.json`)
+  - Configuration file at `/etc/claude/mcp.json` (symlinked to `/home/claude/.claude/plugins/mcp.json`)
   - Context files included for: Playwright, Tailwind CSS v4.1, DaisyUI, Claude Flow
+  - **webserver-env**: Custom MCP server for monitoring external webserver (read-only, no cache clearing)
 
 ### Claude CLI Setup
 The claude command is installed via npm as `@anthropic-ai/claude-code`. The following paths are configured in PATH:
@@ -86,20 +88,20 @@ The entrypoint scripts properly set PATH and check for claude command availabili
 The claude-flow container includes Playwright for browser automation testing.
 
 **CRITICAL: When creating ANY Playwright tests or screenshot scripts, you MUST use these directories:**
-- **playwright-tests/**: ALL Playwright test files MUST be saved here (*.spec.js, *.test.js, or any test scripts)
-- **playwright-results/**: ALL screenshots and test artifacts MUST be saved here
-- **playwright-report/**: HTML test reports are generated here
+- **playwright/tests/**: ALL Playwright test files MUST be saved here (*.spec.js, *.test.js, or any test scripts)
+- **playwright/results/**: ALL screenshots and test artifacts MUST be saved here
+- **playwright/report/**: HTML test reports are generated here
 
 **Directory paths to use in your code:**
 ```javascript
 // ALWAYS save tests in:
-'playwright-tests/your-test.spec.js'
+'playwright/tests/your-test.spec.js'
 
 // ALWAYS save screenshots in:
-await page.screenshot({ path: 'playwright-results/screenshot.png' });
+await page.screenshot({ path: 'playwright/results/screenshot.png' });
 
 // ALWAYS save other artifacts in:
-'playwright-results/your-artifact.json'
+'playwright/results/your-artifact.json'
 ```
 
 **How to use Playwright in scripts:**
@@ -114,9 +116,9 @@ const { test, expect } = require('/usr/local/lib/node_modules/@playwright/test')
 ```
 
 **Example commands:**
-- `npx playwright test playwright-tests/` - Run all tests in playwright-tests/
+- `npx playwright test playwright/tests/` - Run all tests in playwright/tests/
 - `npx playwright codegen` - Generate test code by recording actions
-- `npx playwright show-report playwright-report/` - View HTML test report
+- `npx playwright show-report playwright/report/` - View HTML test report
 
 **REMEMBER: Never create Playwright files in the root directory. Always use the designated directories above!**
 

@@ -8,8 +8,10 @@
 export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
 # Set NODE_PATH for global modules
 export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
-# Set Playwright browsers path
+# Set Playwright browsers path - CRITICAL for finding pre-installed browsers
 export PLAYWRIGHT_BROWSERS_PATH="/opt/playwright-browsers"
+# Export for all child processes
+export PLAYWRIGHT_BROWSERS_PATH
 
 ROOT="/var/www/html"
 
@@ -97,28 +99,65 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
-# SETUP MCP CONFIGURATION
+# SETUP MCP CONFIGURATION (ULTRA-FAST PRE-CACHED VERSION)
 # ═══════════════════════════════════════════════════════════
 
-echo "🔧 Setting up MCP configuration..."
+echo "⚡ Ultra-fast MCP setup using pre-cached configuration..."
 
-# Ensure /etc/claude directory exists
-mkdir -p /etc/claude
+# Use pre-configured .claude.json if user doesn't have one
+if [ ! -f /home/claude/.claude.json ]; then
+    echo "📋 Installing pre-configured MCP servers from Docker cache..."
+    cp /home/claude/.claude-template.json /home/claude/.claude.json
 
-# Copy MCP config from project to system location if needed
-if [ -f /var/www/html/docker/mcp.json ]; then
-    cp /var/www/html/docker/mcp.json /etc/claude/mcp.json
-    chmod 644 /etc/claude/mcp.json
-    echo "✅ MCP configuration installed at /etc/claude/mcp.json"
+    # Update the currentProject path if needed
+    sed -i "s|\"currentProject\": \"/var/www/html\"|\"currentProject\": \"$ROOT\"|g" /home/claude/.claude.json
+    sed -i "s|\"/var/www/html\": {|\"$ROOT\": {|g" /home/claude/.claude.json
+
+    echo "✅ MCP servers pre-configured and ready!"
+    echo "   ✓ Claude Flow and Ruv Swarm pre-cached"
+    echo "   ✓ Playwright browsers cached at: $PLAYWRIGHT_BROWSERS_PATH"
+else
+    echo "✅ Using existing Claude configuration"
 fi
 
-# Copy context files to home directory
+# Ensure MCP legacy config is also available for compatibility
+if [ -f /opt/mcp-cache/mcp.json ]; then
+    mkdir -p /home/claude/.claude/plugins
+    cp /opt/mcp-cache/mcp.json /home/claude/.claude/plugins/mcp.json 2>/dev/null || true
+    chmod 644 /home/claude/.claude/plugins/mcp.json 2>/dev/null || true
+fi
+
+# Setup context files with symlinks (fast operation)
 if [ -d /var/www/html/claude/context ]; then
     mkdir -p /home/claude/.claude/context
-    cp -r /var/www/html/claude/context/*.json /home/claude/.claude/context/ 2>/dev/null || true
+
+    # Create symlinks for each context file (very fast)
+    for context_file in /var/www/html/claude/context/*.json; do
+        if [ -f "$context_file" ]; then
+            filename=$(basename "$context_file")
+            ln -sf "$context_file" "/home/claude/.claude/context/$filename"
+        fi
+    done
+
     chown -R claude:claude /home/claude/.claude/context
-    echo "✅ MCP context files copied to /home/claude/.claude/context/"
 fi
+
+# Ensure proper ownership and permissions
+chown -R claude:claude /home/claude/.claude
+chmod 755 /home/claude/.claude
+chmod 644 /home/claude/.claude.json 2>/dev/null || true
+if [ -d /home/claude/.claude/plugins ]; then
+    chmod 755 /home/claude/.claude/plugins
+    chmod 644 /home/claude/.claude/plugins/* 2>/dev/null || true
+fi
+
+# Setup custom MCP servers if they exist
+if [ -d /var/www/html/claude/mcp-servers ]; then
+    chmod +x /var/www/html/claude/mcp-servers/*.js 2>/dev/null || true
+    echo "✅ Custom MCP servers ready"
+fi
+
+echo "✅ MCP configuration complete (cached startup)"
 
 # ═══════════════════════════════════════════════════════════
 # ROOT OPERATIONS (system-level setup)
@@ -220,11 +259,11 @@ fi
 
 # IMPORTANT: Playwright Test Directory Structure
 # The following directories are used for Playwright testing:
-# - playwright-tests/: All test files (*.spec.js, *.test.js) go here
-# - playwright-results/: Test execution results and screenshots are saved here
-# - playwright-report/: HTML test reports are generated here
+# - playwright/tests/: All test files (*.spec.js, *.test.js) go here
+# - playwright/results/: Test execution results and screenshots are saved here
+# - playwright/report/: HTML test reports are generated here
 # Always save Playwright tests and scripts in these directories!
-mkdir -p "$ROOT/playwright-tests" "$ROOT/playwright-results" "$ROOT/playwright-report"
+mkdir -p "$ROOT/playwright/tests" "$ROOT/playwright/results" "$ROOT/playwright/report"
 chown -R claude:claude $ROOT/playwright-* 2>/dev/null || true
 
 # Playwright is globally installed and can be used with:
@@ -242,10 +281,12 @@ cat > /home/claude/.bashrc << 'EOF'
 # Source environment variables
 [ -f ~/.claude_env ] && source ~/.claude_env
 
+# CRITICAL: Set Playwright browsers path FIRST before any other configs
+export PLAYWRIGHT_BROWSERS_PATH="/opt/playwright-browsers"
+
 # Set PATH
 export PATH="/home/claude/.deno/bin:/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
 export NPM_CONFIG_PREFIX="/home/claude/.npm-global"
-export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
 
 # Playwright has all browsers installed and ready
@@ -280,15 +321,15 @@ if [ -t 1 ]; then
 
     # Show Docker tools info
     echo "🎭 Flow Testing Tools Ready:"
-    echo "  • playwright test                   → run tests from playwright-tests/"
+    echo "  • playwright test                   → run tests from playwright/tests/"
     echo "  • playwright codegen                → generate test code"
     echo "  • curl http://localhost:3000        → access localhost services"
     echo "  • Frontend URL: $FRONTEND_URL"
     echo ""
     echo "📁 Playwright directories:"
-    echo "  • playwright-tests/                 → place test files here"
-    echo "  • playwright-results/               → screenshots & artifacts"
-    echo "  • playwright-report/                → HTML test reports"
+    echo "  • playwright/tests/                 → place test files here"
+    echo "  • playwright/results/               → screenshots & artifacts"
+    echo "  • playwright/report/                → HTML test reports"
     echo ""
 
     # Auto-start claude based on credentials
@@ -316,6 +357,7 @@ echo ""
 echo "📝 Type 'cat ~/README.md' for tool usage"
 echo ""
 
-# Switch to claude user and start interactive shell
+# Switch to claude user and start interactive shell with environment preserved
 cd /var/www/html
-exec su - claude -c "cd /var/www/html && exec bash"
+# CRITICAL: Always export PLAYWRIGHT_BROWSERS_PATH when switching to claude user
+exec su - claude -c "export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers && export NODE_PATH=/usr/local/lib/node_modules && cd /var/www/html && exec bash"

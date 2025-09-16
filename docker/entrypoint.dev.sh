@@ -89,28 +89,63 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
-# SETUP MCP CONFIGURATION
+# SETUP MCP CONFIGURATION (ULTRA-FAST PRE-CACHED VERSION)
 # ═══════════════════════════════════════════════════════════
 
-echo "🔧 Setting up MCP configuration..."
+echo "⚡ Ultra-fast MCP setup using pre-cached configuration..."
 
-# Ensure /etc/claude directory exists
-mkdir -p /etc/claude
+# Use pre-configured .claude.json if user doesn't have one
+if [ ! -f /home/claude/.claude.json ]; then
+    echo "📋 Installing pre-configured MCP servers from Docker cache..."
+    cp /home/claude/.claude-template.json /home/claude/.claude.json
 
-# Copy MCP config from project to system location if needed
-if [ -f /var/www/html/docker/mcp.json ]; then
-    cp /var/www/html/docker/mcp.json /etc/claude/mcp.json
-    chmod 644 /etc/claude/mcp.json
-    echo "✅ MCP configuration installed at /etc/claude/mcp.json"
+    # Update the currentProject path if needed
+    sed -i "s|\"currentProject\": \"/var/www/html\"|\"currentProject\": \"$ROOT\"|g" /home/claude/.claude.json
+    sed -i "s|\"/var/www/html\": {|\"$ROOT\": {|g" /home/claude/.claude.json
+
+    echo "✅ MCP servers pre-configured and ready!"
+else
+    echo "✅ Using existing Claude configuration"
 fi
 
-# Copy context files to home directory
+# Ensure MCP legacy config is also available for compatibility
+if [ -f /opt/mcp-cache/mcp.json ]; then
+    mkdir -p /home/claude/.claude/plugins
+    cp /opt/mcp-cache/mcp.json /home/claude/.claude/plugins/mcp.json 2>/dev/null || true
+    chmod 644 /home/claude/.claude/plugins/mcp.json 2>/dev/null || true
+fi
+
+# Setup context files with symlinks (fast operation)
 if [ -d /var/www/html/claude/context ]; then
     mkdir -p /home/claude/.claude/context
-    cp -r /var/www/html/claude/context/*.json /home/claude/.claude/context/ 2>/dev/null || true
+
+    # Create symlinks for each context file (very fast)
+    for context_file in /var/www/html/claude/context/*.json; do
+        if [ -f "$context_file" ]; then
+            filename=$(basename "$context_file")
+            ln -sf "$context_file" "/home/claude/.claude/context/$filename"
+        fi
+    done
+
     chown -R claude:claude /home/claude/.claude/context
-    echo "✅ MCP context files copied to /home/claude/.claude/context/"
 fi
+
+# Ensure proper ownership and permissions
+chown -R claude:claude /home/claude/.claude
+chmod 755 /home/claude/.claude
+chmod 644 /home/claude/.claude.json 2>/dev/null || true
+if [ -d /home/claude/.claude/plugins ]; then
+    chmod 755 /home/claude/.claude/plugins
+    chmod 644 /home/claude/.claude/plugins/* 2>/dev/null || true
+fi
+
+# Setup custom MCP servers if they exist
+if [ -d /var/www/html/claude/mcp-servers ]; then
+    chmod +x /var/www/html/claude/mcp-servers/*.js 2>/dev/null || true
+    echo "✅ Custom MCP servers ready"
+fi
+
+echo "✅ MCP configuration complete (cached startup)"
 
 # ═══════════════════════════════════════════════════════════
 # SETUP CLAUDE ENVIRONMENT

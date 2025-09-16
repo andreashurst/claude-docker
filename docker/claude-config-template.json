@@ -1,0 +1,50 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/usr/local/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+        "/var/www/html"
+      ],
+      "env": {}
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/usr/local/lib/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+      ],
+      "env": {}
+    },
+    "git": {
+      "type": "stdio",
+      "command": "mcp-server-git",
+      "args": [
+        "--repository",
+        "/var/www/html"
+      ],
+      "env": {}
+    },
+    "sqlite": {
+      "type": "stdio",
+      "command": "mcp-server-sqlite",
+      "args": [
+        "--db-path",
+        "/home/claude/.claude/databases/main.db"
+      ],
+      "env": {}
+    },
+    "webserver-env": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/var/www/html/claude/mcp-servers/webserver-env.js"
+      ],
+      "env": {}
+    }
+  },
+  "enabledMcpjsonServers": [],
+  "disabledMcpjsonServers": [],
+  "hasTrustDialogAccepted": true
+}

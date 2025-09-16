@@ -219,7 +219,7 @@ EOF
 
         <div class="section">
             <h2>🎯 Playwright Testing</h2>
-            <p>Create test files in <code>playwright-tests/</code> folder:</p>
+            <p>Create test files in <code>playwright/tests/</code> folder:</p>
             <div class="command">
 // Example test
 test('homepage loads', async ({ page }) => {
@@ -234,7 +234,7 @@ test('homepage loads', async ({ page }) => {
             <ol>
                 <li>Edit this file: <code>public/index.html</code></li>
                 <li>Add your application files to <code>public/</code></li>
-                <li>Write Playwright tests in <code>playwright-tests/</code></li>
+                <li>Write Playwright tests in <code>playwright/tests/</code></li>
                 <li>Run tests with <code>playwright test</code></li>
             </ol>
         </div>
@@ -248,17 +248,6 @@ test('homepage loads', async ({ page }) => {
 HTML
             echo "✅ Created public/index.html with howto guide on port $WEBSERVER_PORT"
     fi
-}
-
-
-# Ask to replace override file
-claude_docker_ask_replace_override() {
-    if [ -f "docker-compose.override.yml" ]; then
-        read -p "Replace existing docker-compose.override.yml? (y/N): " -n 1 -r
-        echo
-        [[ ! $REPLY =~ ^[Yy]$ ]] && return 1
-    fi
-    return 0
 }
 
 # Create localhost mapping script (shared part)
@@ -468,9 +457,9 @@ claude_docker_create_flow_environment() {
 # Playwright specific settings
 export PLAYWRIGHT_BROWSERS_PATH=/home/claude/.cache/ms-playwright
 export FLOW_MODE=true
-export PLAYWRIGHT_SCREENSHOTS_DIR="/var/www/html/playwright-results"
-export PLAYWRIGHT_TEST_OUTPUT_DIR="/var/www/html/playwright-results"
-export PLAYWRIGHT_HTML_REPORT="/var/www/html/playwright-report"
+export PLAYWRIGHT_SCREENSHOTS_DIR="/var/www/html/playwright/results"
+export PLAYWRIGHT_TEST_OUTPUT_DIR="/var/www/html/playwright/results"
+export PLAYWRIGHT_HTML_REPORT="/var/www/html/playwright/report"
 
 # Claude-flow directories in home (not in project!)
 export CLAUDE_FLOW_HOME="/home/claude/.claude-flow"
@@ -587,8 +576,8 @@ claude_docker_playwright_config() {
 
     # Setup test directories with playwright prefix
     echo "📁 Setting up Playwright directories..."
-    mkdir -p playwright-tests
-    mkdir -p playwright-results
-    mkdir -p playwright-report
+    mkdir -p playwright/tests
+    mkdir -p playwright/results
+    mkdir -p playwright/report
 
 }

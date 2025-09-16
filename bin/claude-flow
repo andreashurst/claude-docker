@@ -19,12 +19,6 @@ claude_docker_create_files() {
     # For claude-flow, create docker-compose.yml with webserver if it doesn't exist
     claude_docker_create_flow_compose_with_webserver
 
-    # Ask about override file using library function
-    claude_docker_ask_replace_override || return 0
-
-    # MCP configuration would go in container, not in project
-    # Removed MCP config creation from project directory
-
     # Create docker-compose.override.yml using library
     claude_docker_create_override "flow" "$CURRENT_DIR"
 
