@@ -19,6 +19,7 @@ claude-dev
 - 🔑 **Credentials** - Stored in Docker volumes for persistence
 - 🚀 **Fast** - Lightweight Alpine Linux base
 - 🎯 **Smart** - Auto-detects project type (Node, PHP, Python, etc.)
+- 🤖 **MCP Servers** - Pre-configured context servers for Tailwind, DaisyUI, Playwright, etc.
 
 ## Two Flavors
 
@@ -55,9 +56,16 @@ claude-docker/
 │   ├── claude-dev           # Main installer
 │   ├── claude-flow          # Testing variant
 │   └── claude-docker.lib.sh # Shared functions
-├── Dockerfile.dev           # Development image
-├── Dockerfile.flow          # Testing image
-└── docker/                  # Container scripts
+├── docker/
+│   ├── Dockerfile.dev       # Development image
+│   ├── Dockerfile.flow      # Testing image
+│   ├── entrypoint.dev.sh    # Dev container init
+│   └── entrypoint.flow.sh   # Flow container init
+└── mcp/                     # Model Context Protocol
+    ├── servers/             # MCP server implementations
+    ├── context/             # Context data by tool
+    ├── cache/               # Build-time templates
+    └── config.json          # MCP configuration
 ```
 
 ## Requirements

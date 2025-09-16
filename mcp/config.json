@@ -22,37 +22,37 @@
     },
     "webserver-env": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/webserver-env.js"],
+      "args": ["/home/claude/mcp/servers/webserver-env.js"],
       "description": "External webserver environment monitoring (read-only, no cache clearing)"
     },
     "playwright-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/playwright-context.js"],
+      "args": ["/home/claude/mcp/servers/playwright-context.js"],
       "description": "Cached Playwright framework context and documentation"
     },
     "playwright-advanced-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/playwright-advanced-context.js"],
+      "args": ["/home/claude/mcp/servers/playwright-advanced-context.js"],
       "description": "Advanced Playwright patterns and enterprise testing strategies"
     },
     "tailwind-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/tailwind-context.js"],
+      "args": ["/home/claude/mcp/servers/tailwind-context.js"],
       "description": "Cached Tailwind CSS v4.1 context and utilities"
     },
     "daisyui-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/daisyui-context.js"],
+      "args": ["/home/claude/mcp/servers/daisyui-context.js"],
       "description": "Cached DaisyUI component library context"
     },
     "vite-hmr-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/vite-hmr-context.js"],
+      "args": ["/home/claude/mcp/servers/vite-hmr-context.js"],
       "description": "Cached Vite HMR configuration and troubleshooting"
     },
     "claude-flow-context": {
       "command": "node",
-      "args": ["/var/www/html/claude/mcp-servers/claude-flow-context.js"],
+      "args": ["/home/claude/mcp/servers/claude-flow-context.js"],
       "description": "Cached Claude Flow automation framework context"
     }
   },

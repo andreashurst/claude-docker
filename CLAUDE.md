@@ -12,10 +12,10 @@ Claude Docker enables users to run Claude Code CLI securely in Docker containers
 
 ### Building Docker Images
 ```bash
-./docker.build.sh                    # Build both dev and flow images locally
-./docker.push.sh                     # Build and push to Docker Hub
-./docker.push.sh --no-cache          # Force rebuild without cache and push
-./docker.push.sh --skip-build        # Push existing images only
+./docker/build.sh                    # Build both dev and flow images locally
+./docker/push.sh                     # Build and push to Docker Hub
+./docker/push.sh --no-cache          # Force rebuild without cache and push
+./docker/push.sh --skip-build        # Push existing images only
 ```
 
 ### Installation and Usage
@@ -37,7 +37,7 @@ claude-flow                          # Start flow container with testing tools
 - **Dockerfile.dev**: Base Alpine Linux image with:
   - Development languages: Node.js, PHP 8.3, Python 3, Ruby, Go, Rust
   - Package managers: npm, yarn, pnpm, bun, pip, composer
-  - MCP servers for Claude integration
+  - MCP servers for Claude integration (copied to /opt/mcp-assets)
   - Claude Code CLI installed globally
   - Image/PDF handling tools (ImageMagick, ffmpeg, etc.)
 - **Dockerfile.flow**: Extends dev image with:
@@ -46,7 +46,10 @@ claude-flow                          # Start flow container with testing tools
   - Deno runtime for additional scripting
   - Python MCP servers (mcp-server-git)
   - Claude Flow and Ruv Swarm for advanced automation
-- **entrypoint.dev.sh** and **entrypoint.flow.sh**: Container initialization scripts that handle localhost mapping and environment setup
+- **entrypoint.dev.sh** and **entrypoint.flow.sh**: Container initialization scripts that:
+  - Handle localhost mapping and environment setup
+  - Create symlinks from /opt/mcp-assets to /home/claude/mcp
+  - Initialize MCP configuration if not present
 
 ### Key Design Decisions
 1. **Localhost Mapping**: Containers automatically detect and map localhost to host services using Docker's host.docker.internal
@@ -59,6 +62,18 @@ claude-flow                          # Start flow container with testing tools
 - Containers mount current directory at /var/www/html
 - Host network access via host.docker.internal (mapped to localhost inside container)
 - Shared credentials via Docker volume mounted at /home/claude
+
+### MCP (Model Context Protocol) Structure
+- **mcp/servers/**: MCP server implementations (webserver-env, tailwind-context, etc.)
+- **mcp/context/**: Context data files organized by tool (tailwind/, daisyui/, playwright/, etc.)
+- **mcp/cache/**: Build-time templates and cache files
+- **mcp/config.json**: Main MCP configuration
+- **mcp/init.sh**: MCP initialization script
+
+During Docker build:
+- Files copied from `mcp/` to `/opt/mcp-assets/` (system location, root owned)
+- At runtime, symlinks created: `/home/claude/mcp/` → `/opt/mcp-assets/`
+- This keeps MCP files out of project root while maintaining accessibility
 
 ## Important Notes
 
@@ -73,9 +88,16 @@ The containers now include all major package managers and development tools:
   - `mcp-server-memory`: In-memory data storage
   - `mcp-server-git`: Git repository operations
   - `mcp-server-sqlite`: SQLite database management
-  - Configuration file at `/etc/claude/mcp.json` (symlinked to `/home/claude/.claude/plugins/mcp.json`)
-  - Context files included for: Playwright, Tailwind CSS v4.1, DaisyUI, Claude Flow
-  - **webserver-env**: Custom MCP server for monitoring external webserver (read-only, no cache clearing)
+  - **Custom context servers** (located at `/home/claude/mcp/servers/`):
+    - `webserver-env`: External webserver monitoring (read-only)
+    - `tailwind-context`: Tailwind CSS v4.1 documentation
+    - `daisyui-context`: DaisyUI component library context
+    - `playwright-context`: Playwright testing framework context
+    - `playwright-advanced-context`: Advanced Playwright patterns
+    - `vite-hmr-context`: Vite HMR configuration help
+    - `claude-flow-context`: Claude Flow automation framework
+  - Configuration at `/etc/claude/mcp.json` (copied from `mcp/config.json`)
+  - Context files at `/home/claude/.claude/context/` (symlinked from `/opt/mcp-assets/context/`)
 
 ### Claude CLI Setup
 The claude command is installed via npm as `@anthropic-ai/claude-code`. The following paths are configured in PATH:

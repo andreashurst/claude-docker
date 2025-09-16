@@ -14,38 +14,17 @@ check_docker() {
 
 # Install global commands
 install_commands() {
-    sudo cp bin/claude-dev /usr/local/bin/claude-dev
-    sudo cp bin/claude-flow /usr/local/bin/claude-flow
-    sudo cp bin/claude-docker.lib.sh /usr/local/bin/claude-docker.lib.sh
-    sudo chmod +x /usr/local/bin/claude-dev /usr/local/bin/claude-flow
+    # Copy main scripts
+    sudo cp bin/claude-dev /usr/local/bin/
+    sudo cp bin/claude-flow /usr/local/bin/
+    sudo cp bin/claude-docker.lib.sh /usr/local/bin/
+
+    # Set permissions
+    sudo chmod +x /usr/local/bin/claude-dev
+    sudo chmod +x /usr/local/bin/claude-flow
     sudo chmod 644 /usr/local/bin/claude-docker.lib.sh
 
-    # Install MCP configuration files if they exist
-    if [ -f docker/mcp.json ]; then
-        sudo mkdir -p /usr/local/share/claude-docker
-        sudo cp docker/mcp.json /usr/local/share/claude-docker/mcp.json
-        sudo cp docker/mcp-init.sh /usr/local/share/claude-docker/mcp-init.sh
-        sudo chmod 644 /usr/local/share/claude-docker/mcp.json
-        sudo chmod +x /usr/local/share/claude-docker/mcp-init.sh
-        echo "MCP configuration files installed"
-    fi
-
-    # Copy context files if they exist
-    if [ -d claude/context ]; then
-        sudo mkdir -p /usr/local/share/claude-docker/context
-        sudo cp -r claude/context/*.json /usr/local/share/claude-docker/context/ 2>/dev/null || true
-        echo "Context files installed"
-    fi
-
-    # Copy MCP servers if they exist
-    if [ -d claude/mcp-servers ]; then
-        sudo mkdir -p /usr/local/share/claude-docker/mcp-servers
-        sudo cp -r claude/mcp-servers/* /usr/local/share/claude-docker/mcp-servers/ 2>/dev/null || true
-        sudo chmod +x /usr/local/share/claude-docker/mcp-servers/*.js 2>/dev/null || true
-        echo "MCP servers installed"
-    fi
-
-    echo "Global commands installed: claude-dev, claude-flow"
+    echo "✅ Commands installed: claude-dev, claude-flow"
 }
 
 # Pull Docker images
@@ -64,8 +43,8 @@ main() {
     check_docker
     install_commands
     pull_images
-    hash -d claude-dev 2>/dev/null || true
-    hash -d claude-flow 2>/dev/null || true
+    # Clear command cache
+    hash -r 2>/dev/null || true
     
     echo "✅ Installation completed successfully!"
     echo ""

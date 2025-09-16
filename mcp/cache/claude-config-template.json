@@ -39,7 +39,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "/var/www/html/claude/mcp-servers/webserver-env.js"
+        "/home/claude/mcp/servers/webserver-env.js"
       ],
       "env": {}
     }

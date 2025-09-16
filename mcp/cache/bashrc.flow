@@ -1,0 +1,19 @@
+# Claude Flow Environment
+PS1='\[\033[01;35m\]claude@flow\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+export PATH="/home/claude/.deno/bin:/usr/local/bin:$PATH"
+export NODE_PATH="/usr/local/lib/node_modules:$NODE_PATH"
+export PLAYWRIGHT_BROWSERS_PATH="/opt/playwright-browsers"
+
+alias ll='ls -la'
+alias ..='cd ..'
+alias apt='echo "Use the host system for APT package management" && false'
+
+# Auto-start claude
+if [ -t 1 ]; then
+    if command -v claude >/dev/null 2>&1; then
+        claude
+    else
+        echo "Run 'claude auth login' to get started"
+    fi
+fi

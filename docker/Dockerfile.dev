@@ -75,89 +75,61 @@ RUN addgroup -g 1010 claude && \
 # Add claude to sudoers
 RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Create directories including npm-global for user
-RUN mkdir -p /home/claude/.config && \
-    mkdir -p /home/claude/.claude && \
-    mkdir -p /home/claude/.npm-global && \
-    chown -R claude:claude /home/claude
+# Note: /home/claude is volume-mounted, so we don't create anything there during build
 
-# Copy context files to claude user directory
-COPY claude/ /home/claude/.claude/
+# Copy MCP files to system location (owned by root)
+COPY mcp/ /opt/mcp-assets/
 
 # Create directories for MCP configuration
-RUN mkdir -p /etc/claude /opt/mcp-cache
+RUN mkdir -p /etc/claude /opt/mcp-cache && \
+    chmod -R 755 /opt/mcp-assets && \
+    chmod +x /opt/mcp-assets/servers/*.js
 
-# Copy MCP configuration files for Claude Code
-COPY docker/mcp.json /etc/claude/mcp.json
-COPY docker/claude-config-template.json /opt/mcp-cache/claude-config-template.json
-
-# Ensure MCP configs are readable by all users
-RUN chmod 644 /etc/claude/mcp.json && \
-    chmod 644 /opt/mcp-cache/claude-config-template.json
+# Copy MCP cache files to system cache directory
+RUN cp /opt/mcp-assets/cache/claude-config-template.json /opt/mcp-cache/claude-config-template.json && \
+    cp /opt/mcp-assets/cache/bashrc.dev /opt/mcp-cache/bashrc && \
+    cp /opt/mcp-assets/cache/bashrc.root /root/.bashrc && \
+    chmod 644 /opt/mcp-cache/*
 
 # Pre-cache and configure MCP servers during build
-RUN mkdir -p /home/claude/.claude/plugins /home/claude/.claude/databases && \
-    # Copy MCP configuration to cache (already in /opt/mcp-cache from COPY command)
-    cp /etc/claude/mcp.json /opt/mcp-cache/mcp.json && \
-    # Create a pre-configured .claude.json for the project
-    echo '{' > /home/claude/.claude-template.json && \
-    echo '  "currentProject": "/var/www/html",' >> /home/claude/.claude-template.json && \
-    echo '  "projects": {' >> /home/claude/.claude-template.json && \
-    echo '    "/var/www/html": {' >> /home/claude/.claude-template.json && \
-    echo '      "allowedTools": [],' >> /home/claude/.claude-template.json && \
-    echo '      "mcpContextUris": [],' >> /home/claude/.claude-template.json && \
-    cat /opt/mcp-cache/claude-config-template.json | jq -c . | sed 's/^{/      /' | sed 's/}$//' >> /home/claude/.claude-template.json && \
-    echo '    }' >> /home/claude/.claude-template.json && \
-    echo '  }' >> /home/claude/.claude-template.json && \
-    echo '}' >> /home/claude/.claude-template.json && \
+RUN cp /opt/mcp-assets/config.json /opt/mcp-cache/mcp.json && \
+    cp /opt/mcp-assets/config.json /etc/claude/mcp.json && \
+    chmod 644 /etc/claude/mcp.json && \
+    # Create a pre-configured .claude.json template in system location
+    echo '{' > /opt/mcp-cache/claude-template.json && \
+    echo '  "currentProject": "/var/www/html",' >> /opt/mcp-cache/claude-template.json && \
+    echo '  "projects": {' >> /opt/mcp-cache/claude-template.json && \
+    echo '    "/var/www/html": {' >> /opt/mcp-cache/claude-template.json && \
+    echo '      "allowedTools": [],' >> /opt/mcp-cache/claude-template.json && \
+    echo '      "mcpContextUris": [],' >> /opt/mcp-cache/claude-template.json && \
+    cat /opt/mcp-cache/claude-config-template.json | jq -c . | sed 's/^{/      /' | sed 's/}$//' >> /opt/mcp-cache/claude-template.json && \
+    echo '    }' >> /opt/mcp-cache/claude-template.json && \
+    echo '  }' >> /opt/mcp-cache/claude-template.json && \
+    echo '}' >> /opt/mcp-cache/claude-template.json && \
     # Pre-initialize MCP server modules to cache dependencies
-    node -e "try { require('@modelcontextprotocol/sdk'); console.log('MCP SDK cached'); } catch(e) {}" && \
-    node -e "try { require('@modelcontextprotocol/server-filesystem'); console.log('Filesystem MCP cached'); } catch(e) {}" && \
-    node -e "try { require('@modelcontextprotocol/server-memory'); console.log('Memory MCP cached'); } catch(e) {}" && \
-    # Ensure proper permissions
-    chown -R claude:claude /home/claude/.claude* && \
+    node -e "try { require('@modelcontextprotocol/sdk'); } catch(e) {}" && \
+    node -e "try { require('@modelcontextprotocol/server-filesystem'); } catch(e) {}" && \
+    node -e "try { require('@modelcontextprotocol/server-memory'); } catch(e) {}" && \
+    # Ensure proper permissions for cache
     chmod 755 /opt/mcp-cache && \
-    chmod 644 /opt/mcp-cache/* && \
-    chmod 755 /home/claude/.claude && \
-    chmod 755 /home/claude/.claude/plugins && \
-    chmod 644 /home/claude/.claude-template.json && \
-    echo "✅ MCP servers pre-cached and configured"
+    chmod 644 /opt/mcp-cache/*
 
-# Copy entrypoint and MCP init scripts
+# Copy entrypoint scripts
 COPY docker/entrypoint.dev.sh /docker/entrypoint.sh
-COPY docker/mcp-init.sh /usr/local/bin/mcp-init
-RUN chmod +x /docker/entrypoint.sh /usr/local/bin/mcp-init
+RUN chmod +x /docker/entrypoint.sh && \
+    cp /opt/mcp-assets/init.sh /usr/local/bin/mcp-init && \
+    chmod +x /usr/local/bin/mcp-init
 
-# Pre-warm MCP server executables
-RUN echo '#!/bin/bash' > /usr/local/bin/mcp-warmup && \
-    echo 'echo "MCP servers already cached at build time"' >> /usr/local/bin/mcp-warmup && \
-    chmod +x /usr/local/bin/mcp-warmup
+# MCP servers are pre-cached during build
+# Note: /home/claude/.claude setup happens in entrypoint since /home/claude is mounted
 
-# Fix ownership of copied files
-RUN chown -R claude:claude /home/claude/.claude
-
-# Setup npm global directory for claude user with proper permissions
-RUN mkdir -p /home/claude/.npm-global && \
-    chown -R claude:claude /home/claude/.npm-global && \
-    # Set npm config for claude user
-    su claude -c "npm config set prefix /home/claude/.npm-global" && \
-    # Install packages as claude user with proper environment
-    su claude -c "cd /home/claude && \
-        export NPM_CONFIG_PREFIX=/home/claude/.npm-global && \
-        export PATH=/home/claude/.npm-global/bin:/usr/local/bin:$PATH && \
-        npm install -g --force \
-            @anthropic-ai/claude-code \
-            pnpm \
-            yarn" && \
-    # Create symlinks in /usr/local/bin for system-wide access
-    ln -sf /home/claude/.npm-global/bin/claude /usr/local/bin/claude && \
-    ln -sf /home/claude/.npm-global/bin/pnpm /usr/local/bin/pnpm && \
-    ln -sf /home/claude/.npm-global/bin/yarn /usr/local/bin/yarn && \
-    # Verify installation
-    ls -la /home/claude/.npm-global/bin/ && \
-    # Set PATH for all users (both npm global locations)
-    echo 'export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"' >> /etc/profile && \
-    echo 'export PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"' >> /etc/bash.bashrc
+# Install global npm packages to system location (yarn already exists in node image)
+RUN npm install -g \
+        @anthropic-ai/claude-code \
+        pnpm && \
+    # Set PATH for all users
+    echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/profile && \
+    echo 'export PATH="/usr/local/bin:$PATH"' >> /etc/bash.bashrc
 
 # Install Python MCP servers (MUST succeed)
 RUN pip3 install --break-system-packages \
@@ -165,8 +137,7 @@ RUN pip3 install --break-system-packages \
     mcp-server-git \
     mcp-server-sqlite && \
     # Verify Python MCP servers are accessible
-    which mcp-server-git && which mcp-server-sqlite && \
-    echo "✅ Python MCP servers installed successfully"
+    which mcp-server-git && which mcp-server-sqlite
 
 # Settings will be created dynamically by entrypoint
 # No static config files needed
@@ -175,8 +146,7 @@ RUN pip3 install --break-system-packages \
 ENV NPM_CONFIG_CACHE=/tmp/npm-cache \
     NODE_ENV=development \
     DOCKER_ENV=true \
-    NPM_CONFIG_PREFIX="/home/claude/.npm-global" \
-    PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH"
+    PATH="/usr/local/bin:$PATH"
 
 # Set working directory
 WORKDIR /var/www/html

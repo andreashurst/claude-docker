@@ -65,7 +65,7 @@ if command -v claude >/dev/null 2>&1; then
     fi
 
     # Custom servers
-    if [ -f /var/www/html/claude/mcp-servers/webserver-env.js ]; then
+    if [ -f /var/www/html/mcp/servers/webserver-env.js ]; then
         echo "   ✅ webserver-env server available"
     else
         echo "   ⚠️  webserver-env server not found (project-specific)"
