@@ -91,8 +91,8 @@ PROJECT_TYPE="unknown"
 [ -f .ddev/config.yaml ] && PROJECT_TYPE="DDEV"
 
 # Setup Playwright directories
-mkdir -p $ROOT/playwright/{tests,results,report}
-chown -R claude:claude $ROOT/playwright* 2>/dev/null
+#mkdir -p $ROOT/playwright/{tests,results,report}
+#chown -R claude:claude $ROOT/playwright* 2>/dev/null
 
 # Setup bashrc from system template
 ln -sf /opt/mcp-cache/bashrc /home/claude/.bashrc
