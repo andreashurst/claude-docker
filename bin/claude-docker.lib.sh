@@ -427,6 +427,12 @@ services:
       - NODE_ENV=development
       - PROJECT_PATH=$CURRENT_DIR
       - PROJECT_TYPE=$(claude_docker_detect_project)
+      - CLAUDE_HOME=/home/claude/.claude
+      - CLAUDE_FLOW_HOME=/home/claude/.claude-flow
+      - HIVE_MIND_HOME=/home/claude/.hive-mind
+      - SWARM_HOME=/home/claude/.swarm
+      - MEMORY_HOME=/home/claude/memory
+      - COORDINATION_HOME=/home/claude/coordination
 $EXTRA_ENV
 
     stdin_open: true
@@ -462,14 +468,16 @@ export PLAYWRIGHT_TEST_OUTPUT_DIR="/var/www/html/playwright/results"
 export PLAYWRIGHT_HTML_REPORT="/var/www/html/playwright/report"
 
 # Claude-flow directories in home (not in project!)
+export CLAUDE_HOME="/home/claude/.claude"
 export CLAUDE_FLOW_HOME="/home/claude/.claude-flow"
 export HIVE_MIND_HOME="/home/claude/.hive-mind"
 export SWARM_HOME="/home/claude/.swarm"
-export MEMORY_HOME="/home/claude/.memory"
+export MEMORY_HOME="/home/claude/memory"
+export COORDINATION_HOME="/home/claude/coordination"
 
 # Create claude-flow directories in home
-mkdir -p /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
-chown -R claude:claude /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/.memory
+mkdir -p /home/claude/.claude /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/memory /home/claude/coordination
+chown -R claude:claude /home/claude/.claude /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/memory /home/claude/coordination
 EOF
 }
 

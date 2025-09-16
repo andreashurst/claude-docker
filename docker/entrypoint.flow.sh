@@ -36,6 +36,7 @@ fi
 # Setup /home/claude directories (since it's volume-mounted)
 mkdir -p /home/claude/.claude/plugins /home/claude/.claude/databases /home/claude/.claude/context
 mkdir -p /home/claude/.npm-global/bin
+mkdir -p /home/claude/.claude-flow /home/claude/.hive-mind /home/claude/.swarm /home/claude/memory /home/claude/coordination
 
 # Copy pre-built environment facts database if it doesn't exist
 if [ ! -f /home/claude/.claude/databases/main.db ] && [ -f /opt/mcp-cache/databases/environment.db ]; then
