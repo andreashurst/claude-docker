@@ -76,6 +76,13 @@ fi
 # Setup /home/claude directories (since it's volume-mounted)
 mkdir -p /home/claude/.claude/plugins /home/claude/.claude/databases /home/claude/.claude/context
 mkdir -p /home/claude/.npm-global/bin
+
+# Copy pre-built environment facts database if it doesn't exist
+if [ ! -f /home/claude/.claude/databases/main.db ] && [ -f /opt/mcp-cache/databases/environment.db ]; then
+    cp /opt/mcp-cache/databases/environment.db /home/claude/.claude/databases/main.db
+    echo "Environment facts database initialized from CLAUDE.md"
+fi
+
 chown -R claude:claude /home/claude
 
 # Setup MCP configuration

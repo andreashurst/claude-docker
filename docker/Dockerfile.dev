@@ -23,6 +23,7 @@ RUN apk update && apk upgrade && \
     openssh-client \
     iputils \
     sudo \
+    sqlite \
     # Development languages and tools for Host-Simulation
     php83 php83-cli php83-phar php83-json php83-mbstring php83-openssl \
     php83-curl php83-dom php83-xml php83-tokenizer \
@@ -95,6 +96,10 @@ RUN cp /opt/mcp-assets/cache/claude-config-template.json /opt/mcp-cache/claude-c
 RUN cp /opt/mcp-assets/config.json /opt/mcp-cache/mcp.json && \
     cp /opt/mcp-assets/config.json /etc/claude/mcp.json && \
     chmod 644 /etc/claude/mcp.json && \
+    # Initialize environment facts database with CLAUDE.md information
+    mkdir -p /opt/mcp-cache/databases && \
+    sqlite3 /opt/mcp-cache/databases/environment.db < /opt/mcp-assets/cache/init-environment-db.sql && \
+    chmod 644 /opt/mcp-cache/databases/environment.db && \
     # Create a pre-configured .claude.json template in system location
     echo '{' > /opt/mcp-cache/claude-template.json && \
     echo '  "currentProject": "/var/www/html",' >> /opt/mcp-cache/claude-template.json && \
