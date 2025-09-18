@@ -122,7 +122,7 @@ fi
     mkdir -p /home/claude/mcp
     ln -sfn /opt/mcp-assets/servers /home/claude/mcp/servers
     ln -sfn /opt/mcp-assets/context /home/claude/mcp/context
-    ln -sfn /opt/mcp-assets/config.json /home/claude/mcp/config.json
+    ln -sfn /opt/mcp-cache/mcp.json /home/claude/mcp/config.json
     ln -sfn /opt/mcp-assets/init.sh /home/claude/mcp/init.sh
 
     mkdir -p /home/claude/.claude/context
@@ -154,9 +154,7 @@ PROJECT_TYPE="unknown"
 [ -f go.mod ] && PROJECT_TYPE="Go"
 [ -f .ddev/config.yaml ] && PROJECT_TYPE="DDEV"
 
-# Setup Playwright directories
-#mkdir -p $ROOT/playwright/{tests,results,report}
-#chown -R claude:claude $ROOT/playwright* 2>/dev/null
+# Playwright will create its own directories as needed
 
 # Setup bashrc from system template
 ln -sf /opt/mcp-cache/bashrc /home/claude/.bashrc
@@ -167,4 +165,4 @@ echo "export PATH=/home/claude/.npm-global/bin:\$PATH" >> /home/claude/.bashrc
 
 # Switch to claude user
 cd /var/www/html
-exec su - claude -c "export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers && export NODE_PATH=/usr/local/lib/node_modules && export NPM_CONFIG_PREFIX=/home/claude/.npm-global && export PATH=/home/claude/.npm-global/bin:\$PATH && cd /var/www/html && exec bash"
+exec su claude -c "export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers && export NODE_PATH=/usr/local/lib/node_modules && export NPM_CONFIG_PREFIX=/home/claude/.npm-global && export PATH=/home/claude/.npm-global/bin:\$PATH && cd /var/www/html && exec bash"

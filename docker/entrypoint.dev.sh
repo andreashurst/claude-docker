@@ -157,7 +157,7 @@ if [ -d /opt/mcp-assets ]; then
     mkdir -p /home/claude/mcp
     ln -sfn /opt/mcp-assets/servers /home/claude/mcp/servers
     ln -sfn /opt/mcp-assets/context /home/claude/mcp/context
-    ln -sfn /opt/mcp-assets/config.json /home/claude/mcp/config.json
+    ln -sfn /opt/mcp-cache/mcp.json /home/claude/mcp/config.json
     ln -sfn /opt/mcp-assets/init.sh /home/claude/mcp/init.sh
 
     # Also create context symlinks in .claude/context for compatibility
@@ -192,4 +192,4 @@ chown -R claude:claude /home/claude
 
 # Switch to claude user and start shell
 cd /var/www/html
-exec su - claude -c "cd /var/www/html && exec bash"
+exec su claude -c "cd /var/www/html && exec bash"

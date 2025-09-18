@@ -42,6 +42,54 @@
         "/home/claude/mcp/servers/webserver-env.js"
       ],
       "env": {}
+    },
+    "playwright-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/playwright-context.js"
+      ],
+      "env": {}
+    },
+    "playwright-advanced-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/playwright-advanced-context.js"
+      ],
+      "env": {}
+    },
+    "tailwind-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/tailwind-context.js"
+      ],
+      "env": {}
+    },
+    "daisyui-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/daisyui-context.js"
+      ],
+      "env": {}
+    },
+    "vite-hmr-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/vite-hmr-context.js"
+      ],
+      "env": {}
+    },
+    "claude-flow-context": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/claude/mcp/servers/claude-flow-context.js"
+      ],
+      "env": {}
     }
   },
   "enabledMcpjsonServers": [],

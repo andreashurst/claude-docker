@@ -16,8 +16,8 @@
       "description": "Git repository operations"
     },
     "sqlite": {
-      "command": "mcp-sqlite",
-      "args": ["--data-dir", "/home/claude/.claude/databases"],
+      "command": "mcp-server-sqlite",
+      "args": ["--db-path", "/home/claude/.claude/databases/main.db"],
       "description": "SQLite database management"
     },
     "webserver-env": {

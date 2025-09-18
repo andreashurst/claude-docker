@@ -96,7 +96,7 @@ class WebServerMCP {
         },
         {
           name: 'get_docker_webserver_info',
-          description: 'Get information about Docker webserver container if running',
+          description: '[DEPRECATED] Docker commands not available inside container',
           inputSchema: {
             type: 'object',
             properties: {
@@ -118,7 +118,7 @@ class WebServerMCP {
                 type: 'array',
                 items: { type: 'string' },
                 description: 'Hosts to test',
-                default: ['localhost', 'webserver', 'host.docker.internal']
+                default: ['localhost']
               }
             }
           }
@@ -292,61 +292,22 @@ class WebServerMCP {
   }
 
   async getDockerWebserverInfo({ container_name = 'webserver' }) {
-    try {
-      // Get container info
-      const { stdout: containers } = await execAsync(
-        `docker ps --filter "name=${container_name}" --format "{{json .}}" 2>/dev/null || echo "[]"`
-      );
-
-      const containerList = containers.trim().split('\n').filter(Boolean).map(line => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return null;
+    // Docker commands are not available inside the container
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: 'Docker commands are not available inside this container',
+            hint: 'Use check_webserver_status or test_webserver_connectivity instead',
+            note: 'Services are accessible via localhost after entrypoint mapping'
+          }, null, 2)
         }
-      }).filter(Boolean);
-
-      // Get network info if container exists
-      let networkInfo = null;
-      if (containerList.length > 0) {
-        try {
-          const { stdout: networks } = await execAsync(
-            `docker inspect ${containerList[0].Names} --format '{{json .NetworkSettings.Networks}}' 2>/dev/null || echo "{}"`
-          );
-          networkInfo = JSON.parse(networks.trim());
-        } catch {
-          networkInfo = {};
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              containers: containerList,
-              networks: networkInfo,
-              found: containerList.length > 0
-            }, null, 2)
-          }
-        ]
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: error.message,
-              hint: 'Docker might not be accessible from this container'
-            }, null, 2)
-          }
-        ]
-      };
-    }
+      ]
+    };
   }
 
-  async testWebserverConnectivity({ hosts = ['localhost', 'webserver', 'host.docker.internal'] }) {
+  async testWebserverConnectivity({ hosts = ['localhost'] }) {
     const results = [];
 
     for (const host of hosts) {
