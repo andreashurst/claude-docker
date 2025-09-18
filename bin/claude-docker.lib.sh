@@ -485,13 +485,3 @@ claude_docker_connect_as_root() {
       exit 1
   fi
 }
-
-claude_docker_playwright_config() {
-
-    # Setup test directories with playwright prefix
-    echo "📁 Setting up Playwright directories..."
-    mkdir -p playwright/tests
-    mkdir -p playwright/results
-    mkdir -p playwright/report
-
-}

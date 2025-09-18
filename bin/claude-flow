@@ -37,8 +37,6 @@ main() {
     # Only create files if container is not already running
     if ! claude_docker_is_running "$CONTAINER_NAME"; then
         claude_docker_create_files
-        # Create playwright.config.js ONLY if it doesn't exist
-        claude_docker_playwright_config
     fi
 
     claude_docker_connect "$CONTAINER_NAME"
