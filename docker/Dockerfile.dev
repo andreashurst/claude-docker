@@ -24,6 +24,7 @@ RUN apk update && apk upgrade && \
     iputils \
     sudo \
     sqlite \
+    rsync \
     # Development languages and tools for Host-Simulation
     php83 php83-cli php83-phar php83-json php83-mbstring php83-openssl \
     php83-curl php83-dom php83-xml php83-tokenizer \
@@ -75,6 +76,17 @@ RUN addgroup -g 1010 claude && \
 
 # Add claude to sudoers
 RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Ensure claude user can use development tools
+RUN chmod 755 /usr/local/bin/composer && \
+    # Create npm global directory for claude user
+    mkdir -p /home/claude/.npm-global && \
+    chown -R claude:claude /home/claude/.npm-global && \
+    # Ensure rsync is executable
+    chmod 755 /usr/bin/rsync 2>/dev/null || true && \
+    # Set npm prefix for claude user to avoid permission issues
+    echo "export NPM_CONFIG_PREFIX=/home/claude/.npm-global" >> /etc/profile && \
+    echo "export PATH=/home/claude/.npm-global/bin:\$PATH" >> /etc/profile
 
 # Note: /home/claude is volume-mounted, so we don't create anything there during build
 
@@ -149,9 +161,12 @@ RUN pip3 install --break-system-packages \
 
 # Set environment variables
 ENV NPM_CONFIG_CACHE=/tmp/npm-cache \
+    NPM_CONFIG_PREFIX=/home/claude/.npm-global \
     NODE_ENV=development \
     DOCKER_ENV=true \
-    PATH="/usr/local/bin:$PATH"
+    PATH="/home/claude/.npm-global/bin:/usr/local/bin:$PATH" \
+    COMPOSER_HOME=/home/claude/.composer \
+    COMPOSER_ALLOW_SUPERUSER=1
 
 # Set working directory
 WORKDIR /var/www/html

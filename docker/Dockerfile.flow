@@ -28,6 +28,7 @@ RUN apt-get update && apt-get upgrade -y && \
     iputils-ping \
     sudo \
     sqlite3 \
+    rsync \
     # Development languages and tools
     php8.2 php8.2-cli php8.2-mbstring php8.2-xml php8.2-curl php8.2-zip \
     python3 python3-pip python3-venv \
@@ -135,6 +136,17 @@ RUN groupadd -g 1010 claude && \
 # Add claude to sudoers
 RUN echo "claude ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# Ensure claude user can use development tools
+RUN chmod 755 /usr/local/bin/composer && \
+    # Create npm global directory for claude user
+    mkdir -p /home/claude/.npm-global && \
+    chown -R claude:claude /home/claude/.npm-global && \
+    # Ensure rsync is executable
+    chmod 755 /usr/bin/rsync 2>/dev/null || true && \
+    # Set npm prefix for claude user to avoid permission issues
+    echo "export NPM_CONFIG_PREFIX=/home/claude/.npm-global" >> /etc/profile && \
+    echo "export PATH=/home/claude/.npm-global/bin:\$PATH" >> /etc/profile
+
 # Note: /home/claude is volume-mounted, so we don't create anything there during build
 
 # Copy MCP files to system location (owned by root)
@@ -201,12 +213,17 @@ RUN npm install -g \
 
 # Environment variables for Flow
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     DENO_INSTALL="/usr/local/deno" \
     NPM_CONFIG_CACHE=/tmp/npm-cache \
+    NPM_CONFIG_PREFIX=/home/claude/.npm-global \
     NODE_ENV=development \
+    NODE_PATH=/usr/local/lib/node_modules \
     DOCKER_ENV=true \
-    PATH="/usr/local/bin:/usr/local/deno/bin:$PATH" \
-    FLOW_MODE=true
+    PATH="/home/claude/.npm-global/bin:/usr/local/bin:/usr/local/deno/bin:$PATH" \
+    COMPOSER_HOME=/home/claude/.composer \
+    COMPOSER_ALLOW_SUPERUSER=1 \
+    FLOW_MODE=true  # Custom flag to identify flow container (not from claude-flow docs)
 
 # Set working directory
 WORKDIR /var/www/html

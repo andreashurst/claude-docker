@@ -250,31 +250,6 @@ HTML
     fi
 }
 
-# Create localhost mapping script (shared part)
-claude_docker_create_localhost_mapping() {
-    cat << 'EOF'
-# ═══════════════════════════════════════════════════════════
-# LOCALHOST MAPPING (as root)
-# ═══════════════════════════════════════════════════════════
-
-echo "🔧 Setting up localhost mapping..."
-
-# Get the Docker host IP from default gateway
-HOST_IP=$(ip route | grep default | awk '{print $3}')
-
-if [ -n "$HOST_IP" ]; then
-    # Simply overwrite /etc/hosts with ONE line - localhost pointing to host
-    echo "$HOST_IP localhost" > /etc/hosts
-
-    echo "✅ Mapped localhost to Docker host ($HOST_IP)"
-    echo "   Now 'curl localhost:PORT' reaches your host machine"
-    echo "   Use the port defined in your docker-compose.yml"
-else
-    echo "❌ Could not determine Docker host IP!"
-fi
-EOF
-}
-
 # Create base environment setup
 claude_docker_create_base_environment() {
     cat << 'EOF'
@@ -283,76 +258,6 @@ export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 export TERM=xterm-256color
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
-EOF
-}
-
-
-# Create helper commands and SAFE blockers (ONLY in Docker containers!)
-claude_docker_create_command_blocker() {
-    cat << 'EOF'
-# CRITICAL: Only run this inside Docker containers, NEVER on host!
-if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
-    echo "⚠️  WARNING: Not in a Docker container - skipping blocker installation"
-    echo "   This protects your host system from being affected"
-    return 0
-fi
-
-echo "✅ Install Helper Commands (Docker container confirmed)"
-
-# Only block APK to prevent container system modifications
-# npm, yarn, pnpm, git are NOT blocked - they're available for use
-cat > /usr/local/bin/apk << 'BLOCKER'
-#!/bin/sh
-# Double-check we're in Docker before blocking
-if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
-    # On host system - run real apk
-    /sbin/apk "$@"
-else
-    # In Docker - block it
-    echo "⚠️  Use the host system for APK package management!"
-    echo "   This is blocked to prevent accidental container modifications."
-    exit 1
-fi
-BLOCKER
-chmod +x /usr/local/bin/apk
-
-# Create ctest helper
-cat > /usr/local/bin/ctest << 'HELPER'
-#!/bin/sh
-curl -s localhost > /dev/null && echo "✅ localhost working!" || echo "❌ localhost not working"
-HELPER
-chmod +x /usr/local/bin/ctest
-
-# Create ll helper
-cat > /usr/local/bin/ll << 'HELPER'
-#!/bin/sh
-ls -la "$@"
-HELPER
-chmod +x /usr/local/bin/ll
-EOF
-}
-
-# Create command blockers as aliases (backup method, also Docker-safe)
-claude_docker_create_command_blockers() {
-    cat << 'EOF'
-# CRITICAL: Only set aliases in Docker containers
-if [ ! -f /.dockerenv ] && [ ! -f /run/.containerenv ]; then
-    echo "⚠️  Not in Docker - skipping alias blockers for safety"
-    return 0
-fi
-
-echo "✅ Install Safety Aliases (Docker container confirmed)"
-# Only block APK to prevent system modifications
-alias apk='echo "⚠️  Use the host system for APK package management!" && false'
-EOF
-}
-
-# Create common aliases
-claude_docker_create_common_aliases() {
-    cat << 'EOF'
-# Basic aliases (only ones that can't be scripts)
-alias ..='cd ..'
-# Note: ll and ctest are now available as scripts in /usr/local/bin
 EOF
 }
 
@@ -371,6 +276,7 @@ claude_docker_update_gitignore() {
         ".DS_Store"
         "Thumbs.db"
         ".backup"
+        "CLAUDE.md*"
     )
 
     # Add each pattern if it doesn't already exist
