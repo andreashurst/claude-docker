@@ -223,7 +223,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers \
     PATH="/home/claude/.npm-global/bin:/usr/local/bin:/usr/local/deno/bin:$PATH" \
     COMPOSER_HOME=/home/claude/.composer \
     COMPOSER_ALLOW_SUPERUSER=1 \
-    FLOW_MODE=true  # Custom flag to identify flow container (not from claude-flow docs)
+    FLOW_MODE=true
 
 # Set working directory
 WORKDIR /var/www/html
