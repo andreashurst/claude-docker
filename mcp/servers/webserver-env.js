@@ -157,65 +157,91 @@ class WebServerMCP {
       const urlObj = new URL(url);
       const client = urlObj.protocol === 'https:' ? https : http;
 
-      const options = {
-        hostname: urlObj.hostname,
-        port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-        path: urlObj.pathname,
-        method: 'HEAD',
-        timeout: timeout * 1000
+      // IMPORTANT: First try localhost directly (in case enable-localhost.sh was run)
+      // If that fails, fall back to host.docker.internal mapping
+      const tryConnection = (hostname, isDirectLocalhost = false) => {
+        const hostHeader = urlObj.hostname; // Keep original for Host header
+
+        const options = {
+          hostname: hostname,
+          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+          path: urlObj.pathname,
+          method: 'HEAD',
+          timeout: timeout * 1000,
+          headers: {
+            'Host': hostHeader // Send original hostname in Host header
+          }
+        };
+
+        const req = client.request(options, (res) => {
+          resolve({
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'online',
+                  statusCode: res.statusCode,
+                  statusMessage: res.statusMessage,
+                  url: url,
+                  accessMethod: isDirectLocalhost ? 'direct-localhost' : 'host.docker.internal',
+                  server: res.headers['server'] || 'unknown',
+                  contentType: res.headers['content-type'] || 'unknown',
+                  note: isDirectLocalhost ? 'Localhost is properly mapped via /etc/hosts' : 'Using host.docker.internal mapping. Run sudo /var/www/html/enable-localhost.sh for direct localhost access'
+                }, null, 2)
+              }
+            ]
+          });
+        });
+
+        req.on('error', (error) => {
+          // If localhost direct connection failed, try host.docker.internal
+          if (isDirectLocalhost && urlObj.hostname === 'localhost') {
+            tryConnection('host.docker.internal', false);
+          } else {
+            resolve({
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'offline',
+                    url: url,
+                    error: error.message,
+                    code: error.code,
+                    solution: urlObj.hostname === 'localhost' ?
+                      'Run: sudo /var/www/html/enable-localhost.sh to enable localhost access' :
+                      'Check if the webserver is running'
+                  }, null, 2)
+                }
+              ]
+            });
+          }
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'timeout',
+                  url: url,
+                  timeout: timeout
+                }, null, 2)
+              }
+            ]
+          });
+        });
+
+        req.end();
       };
 
-      const req = client.request(options, (res) => {
-        resolve({
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'online',
-                statusCode: res.statusCode,
-                statusMessage: res.statusMessage,
-                url: url,
-                server: res.headers['server'] || 'unknown',
-                contentType: res.headers['content-type'] || 'unknown'
-              }, null, 2)
-            }
-          ]
-        });
-      });
-
-      req.on('error', (error) => {
-        resolve({
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'offline',
-                url: url,
-                error: error.message,
-                code: error.code
-              }, null, 2)
-            }
-          ]
-        });
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        resolve({
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'timeout',
-                url: url,
-                timeout: timeout
-              }, null, 2)
-            }
-          ]
-        });
-      });
-
-      req.end();
+      // If it's localhost, try direct connection first
+      if (urlObj.hostname === 'localhost') {
+        tryConnection('localhost', true);
+      } else {
+        tryConnection(urlObj.hostname, false);
+      }
     });
   }
 
@@ -224,12 +250,19 @@ class WebServerMCP {
       const urlObj = new URL(url);
       const client = urlObj.protocol === 'https:' ? https : http;
 
+      // IMPORTANT: Map localhost to host.docker.internal for Docker containers
+      const hostname = urlObj.hostname === 'localhost' ? 'host.docker.internal' : urlObj.hostname;
+      const hostHeader = urlObj.hostname; // Keep original for Host header
+
       const options = {
-        hostname: urlObj.hostname,
+        hostname: hostname,
         port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
         path: urlObj.pathname,
         method: 'HEAD',
-        timeout: 5000
+        timeout: 5000,
+        headers: {
+          'Host': hostHeader // Send original hostname in Host header
+        }
       };
 
       const req = client.request(options, (res) => {
