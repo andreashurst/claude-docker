@@ -132,8 +132,13 @@ RUN cp /opt/mcp-assets/config.json /opt/mcp-cache/mcp.json && \
     chmod 644 /opt/mcp-cache/*
 
 # Copy entrypoint scripts
-COPY docker/entrypoint.dev.sh /docker/entrypoint.sh
+COPY docker/bin/entrypoint.dev /docker/entrypoint.sh
+COPY docker/bin/curl-wrapper /usr/local/bin/curl-wrapper
+COPY docker/bin/curl-wrapper-install /usr/local/bin/curl-wrapper-install
+
 RUN chmod +x /docker/entrypoint.sh && \
+    chmod +x /usr/local/bin/curl-wrapper && \
+    chmod +x /usr/local/bin/curl-wrapper-install && \
     cp /opt/mcp-assets/init.sh /usr/local/bin/mcp-init && \
     chmod +x /usr/local/bin/mcp-init
 

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Install curl wrapper
+cp /var/www/html/docker/bin/curl-wrapper /usr/local/bin/curl
+chmod +x /usr/local/bin/curl

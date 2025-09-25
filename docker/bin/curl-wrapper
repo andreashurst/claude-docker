@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Store path to real curl
+REAL_CURL=$(which -a curl | grep -v "$0" | head -n1)
+
+if [[ $* == *"localhost"* ]]; then
+  args=()
+  for arg in "$@"; do
+    if [[ "$arg" == *"localhost"* ]]; then
+      arg="${arg//localhost/host.docker.internal}"
+    fi
+    args+=("$arg")
+  done
+  exec "$REAL_CURL" -H "Host: localhost" "${args[@]}"
+else
+  exec "$REAL_CURL" "$@"
+fi
