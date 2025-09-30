@@ -1,0 +1,146 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(pwd:*)",
+      "Bash(which:*)",
+      "Bash(whoami:*)",
+      "Bash(node:*)",
+      "Bash(npm:list*)",
+      "Bash(npm:--version*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)",
+      "Bash(ps:*)",
+      "Bash(top:*)",
+      "Bash(readlink:*)",
+      "Bash(playwright:*)",
+      "Bash(git:status*)",
+      "Bash(git:log*)",
+      "Bash(git:diff*)",
+      "Bash(git:show*)",
+      "Bash(git:branch*)",
+      "Bash(git:fetch*)",
+      "Bash(git:pull*)",
+      "Bash(git:add:*)",
+      "Bash(git:commit:*)",
+      "Bash(git:checkout:*)",
+      "Read(/home/claude/mcp/**)"
+    ],
+    "deny": [
+      "Bash(git:push*)",
+      "Bash(git:push:*)",
+      "Bash(rm:-rf*)",
+      "Bash(sudo:rm*)",
+      "Bash(dd:*)"
+    ]
+  },
+  "currentProject": "/var/www/html",
+  "projects": {
+    "/var/www/html": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {
+        "filesystem": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/usr/local/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+            "/var/www/html"
+          ],
+          "env": {}
+        },
+        "memory": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/usr/local/lib/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+          ],
+          "env": {}
+        },
+        "git": {
+          "type": "stdio",
+          "command": "mcp-server-git",
+          "args": [
+            "--repository",
+            "/var/www/html"
+          ],
+          "env": {}
+        },
+        "sqlite": {
+          "type": "stdio",
+          "command": "mcp-server-sqlite",
+          "args": [
+            "--db-path",
+            "/home/claude/.claude/databases/main.db"
+          ],
+          "env": {}
+        },
+        "webserver-env": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/webserver-env.js"
+          ],
+          "env": {}
+        },
+        "playwright-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/playwright-context.js"
+          ],
+          "env": {}
+        },
+        "playwright-advanced-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/playwright-advanced-context.js"
+          ],
+          "env": {}
+        },
+        "tailwind-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/tailwind-context.js"
+          ],
+          "env": {}
+        },
+        "daisyui-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/daisyui-context.js"
+          ],
+          "env": {}
+        },
+        "vite-hmr-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/vite-hmr-context.js"
+          ],
+          "env": {}
+        },
+        "claude-flow-context": {
+          "type": "stdio",
+          "command": "node",
+          "args": [
+            "/home/claude/mcp/servers/claude-flow-context.js"
+          ],
+          "env": {}
+        }
+      },
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true
+    }
+  }
+}

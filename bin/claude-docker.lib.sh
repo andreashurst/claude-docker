@@ -205,6 +205,9 @@ EOF
             <div class="command">curl http://localhost:$WEBSERVER_PORT</div>
             <div class="command">playwright test</div>
             <div class="command">playwright codegen http://localhost</div>
+            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                <strong>Note:</strong> The curl/playwright wrappers automatically map localhost to the host machine.
+            </p>
         </div>
 
         <div class="section">

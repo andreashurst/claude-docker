@@ -1,410 +1,324 @@
 #!/usr/bin/env node
-
 /**
- * MCP Server for External Webserver Environment
- *
- * This MCP server provides safe, read-only access to the external webserver
- * running outside the Docker container. It allows checking status, logs,
- * and configuration without modifying or interfering with the webserver.
+ * Webserver Environment MCP Server
+ * Provides tools to check external webserver status
  */
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const {
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} = require('@modelcontextprotocol/sdk/types.js');
-const http = require('http');
-const https = require('https');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const execAsync = promisify(exec);
+} from '@modelcontextprotocol/sdk/types.js';
+import http from 'http';
+import https from 'https';
 
-class WebServerMCP {
-  constructor() {
-    this.server = new Server(
-      {
-        name: 'mcp-webserver-env',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
+const server = new Server(
+  {
+    name: 'webserver-env',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Helper function to check URL status
+async function checkUrl(url, timeout = 5000, originalHostname = null) {
+  return new Promise((resolve) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    // Use original hostname for Host header, or current hostname if not provided
+    const hostHeader = originalHostname || urlObj.hostname;
+
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      timeout: timeout,
+      headers: {
+        'Host': hostHeader,
+        'User-Agent': 'webserver-env-mcp/1.0'
       }
-    );
-
-    this.setupHandlers();
-  }
-
-  setupHandlers() {
-    // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        {
-          name: 'check_webserver_status',
-          description: 'Check if the external webserver is responding',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              url: {
-                type: 'string',
-                description: 'URL to check (default: http://localhost)',
-                default: 'http://localhost'
-              },
-              timeout: {
-                type: 'number',
-                description: 'Timeout in seconds (default: 5)',
-                default: 5
-              }
-            }
-          }
-        },
-        {
-          name: 'get_webserver_headers',
-          description: 'Get HTTP headers from the webserver',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              url: {
-                type: 'string',
-                description: 'URL to check (default: http://localhost)',
-                default: 'http://localhost'
-              }
-            }
-          }
-        },
-        {
-          name: 'check_webserver_endpoints',
-          description: 'Check multiple webserver endpoints for availability',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              endpoints: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'List of endpoints to check',
-                default: ['/']
-              },
-              base_url: {
-                type: 'string',
-                description: 'Base URL (default: http://localhost)',
-                default: 'http://localhost'
-              }
-            }
-          }
-        },
-        {
-          name: 'get_docker_webserver_info',
-          description: '[DEPRECATED] Docker commands not available inside container',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              container_name: {
-                type: 'string',
-                description: 'Container name pattern to search for',
-                default: 'webserver'
-              }
-            }
-          }
-        },
-        {
-          name: 'test_webserver_connectivity',
-          description: 'Test connectivity to webserver from inside container',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              hosts: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Hosts to test',
-                default: ['localhost']
-              }
-            }
-          }
-        }
-      ]
-    }));
-
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      switch (name) {
-        case 'check_webserver_status':
-          return this.checkWebserverStatus(args);
-
-        case 'get_webserver_headers':
-          return this.getWebserverHeaders(args);
-
-        case 'check_webserver_endpoints':
-          return this.checkWebserverEndpoints(args);
-
-        case 'get_docker_webserver_info':
-          return this.getDockerWebserverInfo(args);
-
-        case 'test_webserver_connectivity':
-          return this.testWebserverConnectivity(args);
-
-        default:
-          throw new Error(`Unknown tool: ${name}`);
-      }
-    });
-  }
-
-  async checkWebserverStatus({ url = 'http://localhost', timeout = 5 }) {
-    return new Promise((resolve) => {
-      const urlObj = new URL(url);
-      const client = urlObj.protocol === 'https:' ? https : http;
-
-      // IMPORTANT: First try localhost directly (in case enable-localhost.sh was run)
-      // If that fails, fall back to host.docker.internal mapping
-      const tryConnection = (hostname, isDirectLocalhost = false) => {
-        const hostHeader = urlObj.hostname; // Keep original for Host header
-
-        const options = {
-          hostname: hostname,
-          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-          path: urlObj.pathname,
-          method: 'HEAD',
-          timeout: timeout * 1000,
-          headers: {
-            'Host': hostHeader // Send original hostname in Host header
-          }
-        };
-
-        const req = client.request(options, (res) => {
-          resolve({
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'online',
-                  statusCode: res.statusCode,
-                  statusMessage: res.statusMessage,
-                  url: url,
-                  accessMethod: isDirectLocalhost ? 'direct-localhost' : 'host.docker.internal',
-                  server: res.headers['server'] || 'unknown',
-                  contentType: res.headers['content-type'] || 'unknown',
-                  note: isDirectLocalhost ? 'Localhost is properly mapped via /etc/hosts' : 'Using host.docker.internal mapping. Run sudo /var/www/html/enable-localhost.sh for direct localhost access'
-                }, null, 2)
-              }
-            ]
-          });
-        });
-
-        req.on('error', (error) => {
-          // If localhost direct connection failed, try host.docker.internal
-          if (isDirectLocalhost && urlObj.hostname === 'localhost') {
-            tryConnection('host.docker.internal', false);
-          } else {
-            resolve({
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    status: 'offline',
-                    url: url,
-                    error: error.message,
-                    code: error.code,
-                    solution: urlObj.hostname === 'localhost' ?
-                      'Run: sudo /var/www/html/enable-localhost.sh to enable localhost access' :
-                      'Check if the webserver is running'
-                  }, null, 2)
-                }
-              ]
-            });
-          }
-        });
-
-        req.on('timeout', () => {
-          req.destroy();
-          resolve({
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'timeout',
-                  url: url,
-                  timeout: timeout
-                }, null, 2)
-              }
-            ]
-          });
-        });
-
-        req.end();
-      };
-
-      // If it's localhost, try direct connection first
-      if (urlObj.hostname === 'localhost') {
-        tryConnection('localhost', true);
-      } else {
-        tryConnection(urlObj.hostname, false);
-      }
-    });
-  }
-
-  async getWebserverHeaders({ url = 'http://localhost' }) {
-    return new Promise((resolve) => {
-      const urlObj = new URL(url);
-      const client = urlObj.protocol === 'https:' ? https : http;
-
-      // IMPORTANT: Map localhost to host.docker.internal for Docker containers
-      const hostname = urlObj.hostname === 'localhost' ? 'host.docker.internal' : urlObj.hostname;
-      const hostHeader = urlObj.hostname; // Keep original for Host header
-
-      const options = {
-        hostname: hostname,
-        port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-        path: urlObj.pathname,
-        method: 'HEAD',
-        timeout: 5000,
-        headers: {
-          'Host': hostHeader // Send original hostname in Host header
-        }
-      };
-
-      const req = client.request(options, (res) => {
-        resolve({
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                url: url,
-                statusCode: res.statusCode,
-                headers: res.headers
-              }, null, 2)
-            }
-          ]
-        });
-      });
-
-      req.on('error', (error) => {
-        resolve({
-          content: [
-            {
-              type: 'text',
-              text: `Error getting headers from ${url}: ${error.message}`
-            }
-          ]
-        });
-      });
-
-      req.end();
-    });
-  }
-
-  async checkWebserverEndpoints({ endpoints = ['/'], base_url = 'http://localhost' }) {
-    const results = [];
-
-    for (const endpoint of endpoints) {
-      const url = new URL(endpoint, base_url).toString();
-      const result = await this.checkWebserverStatus({ url, timeout: 3 });
-      const data = JSON.parse(result.content[0].text);
-      results.push({
-        endpoint,
-        url,
-        status: data.status,
-        statusCode: data.statusCode
-      });
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            base_url,
-            endpoints_checked: endpoints.length,
-            results
-          }, null, 2)
-        }
-      ]
     };
-  }
 
-  async getDockerWebserverInfo({ container_name = 'webserver' }) {
-    // Docker commands are not available inside the container
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            error: 'Docker commands are not available inside this container',
-            hint: 'Use check_webserver_status or test_webserver_connectivity instead',
-            note: 'Services are accessible via localhost after entrypoint mapping'
-          }, null, 2)
-        }
-      ]
-    };
-  }
+    const req = client.request(options, (res) => {
+      resolve({
+        success: true,
+        status: res.statusCode,
+        statusMessage: res.statusMessage,
+        headers: res.headers,
+      });
+      res.resume(); // Consume response
+    });
 
-  async testWebserverConnectivity({ hosts = ['localhost'] }) {
-    const results = [];
+    req.on('error', (error) => {
+      resolve({
+        success: false,
+        error: error.message,
+      });
+    });
 
-    for (const host of hosts) {
-      try {
-        // Try HTTP connection
-        const httpResult = await this.checkWebserverStatus({
-          url: `http://${host}`,
-          timeout: 2
-        });
-        const httpData = JSON.parse(httpResult.content[0].text);
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({
+        success: false,
+        error: 'Request timeout',
+      });
+    });
 
-        // Try HTTPS connection
-        const httpsResult = await this.checkWebserverStatus({
-          url: `https://${host}`,
-          timeout: 2
-        });
-        const httpsData = JSON.parse(httpsResult.content[0].text);
-
-        // Try ping
-        let pingable = false;
-        try {
-          await execAsync(`ping -c 1 -W 1 ${host} 2>/dev/null`);
-          pingable = true;
-        } catch {
-          pingable = false;
-        }
-
-        results.push({
-          host,
-          http: httpData.status,
-          https: httpsData.status,
-          pingable
-        });
-      } catch (error) {
-        results.push({
-          host,
-          error: error.message
-        });
-      }
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            tested_hosts: hosts,
-            results,
-            summary: {
-              reachable: results.filter(r => r.http === 'online' || r.https === 'online').map(r => r.host),
-              unreachable: results.filter(r => r.http !== 'online' && r.https !== 'online').map(r => r.host)
-            }
-          }, null, 2)
-        }
-      ]
-    };
-  }
-
-  async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error('MCP Webserver Environment Server running on stdio');
-  }
+    req.end();
+  });
 }
 
-const server = new WebServerMCP();
-server.run().catch(console.error);
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: 'check_webserver_status',
+        description: 'Check if the external webserver is responding',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'URL to check (default: http://localhost)',
+              default: 'http://localhost',
+            },
+            timeout: {
+              type: 'number',
+              description: 'Timeout in seconds (default: 5)',
+              default: 5,
+            },
+          },
+        },
+      },
+      {
+        name: 'get_webserver_headers',
+        description: 'Get HTTP headers from the webserver',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'URL to check (default: http://localhost)',
+              default: 'http://localhost',
+            },
+          },
+        },
+      },
+      {
+        name: 'check_webserver_endpoints',
+        description: 'Check multiple webserver endpoints for availability',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            base_url: {
+              type: 'string',
+              description: 'Base URL (default: http://localhost)',
+              default: 'http://localhost',
+            },
+            endpoints: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'List of endpoints to check',
+              default: ['/'],
+            },
+          },
+        },
+      },
+      {
+        name: 'get_docker_webserver_info',
+        description: '[DEPRECATED] Docker commands not available inside container',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            container_name: {
+              type: 'string',
+              description: 'Container name pattern to search for',
+              default: 'webserver',
+            },
+          },
+        },
+      },
+      {
+        name: 'test_webserver_connectivity',
+        description: 'Test connectivity to webserver from inside container',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            hosts: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Hosts to test',
+              default: ['localhost'],
+            },
+          },
+        },
+      },
+    ],
+  };
+});
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    if (name === 'check_webserver_status') {
+      const url = args.url || 'http://localhost';
+      const timeout = (args.timeout || 5) * 1000;
+      const urlObj = new URL(url);
+      const originalHostname = urlObj.hostname;
+
+      // Try direct connection first
+      let result = await checkUrl(url, timeout);
+
+      // If direct connection fails and hostname is localhost, try host.docker.internal
+      if (!result.success && originalHostname === 'localhost') {
+        const fallbackUrl = url.replace('localhost', 'host.docker.internal');
+        result = await checkUrl(fallbackUrl, timeout, originalHostname);
+        if (result.success) {
+          result.note = 'Connected via host.docker.internal with Host: localhost header';
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+
+    if (name === 'get_webserver_headers') {
+      const url = args.url || 'http://localhost';
+      const urlObj = new URL(url);
+      const originalHostname = urlObj.hostname;
+
+      // Try direct connection first
+      let result = await checkUrl(url, 5000);
+
+      // If direct connection fails and hostname is localhost, try host.docker.internal
+      if (!result.success && originalHostname === 'localhost') {
+        const fallbackUrl = url.replace('localhost', 'host.docker.internal');
+        result = await checkUrl(fallbackUrl, 5000, originalHostname);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result.headers || {}, null, 2),
+          },
+        ],
+      };
+    }
+
+    if (name === 'check_webserver_endpoints') {
+      const baseUrl = args.base_url || 'http://localhost';
+      const endpoints = args.endpoints || ['/'];
+      const baseUrlObj = new URL(baseUrl);
+      const originalHostname = baseUrlObj.hostname;
+      const results = [];
+
+      for (const endpoint of endpoints) {
+        const url = baseUrl + endpoint;
+
+        // Try direct connection first
+        let result = await checkUrl(url, 5000);
+
+        // If direct connection fails and hostname is localhost, try host.docker.internal
+        if (!result.success && originalHostname === 'localhost') {
+          const fallbackUrl = url.replace('localhost', 'host.docker.internal');
+          result = await checkUrl(fallbackUrl, 5000, originalHostname);
+        }
+
+        results.push({
+          endpoint,
+          ...result,
+        });
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
+      };
+    }
+
+    if (name === 'get_docker_webserver_info') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Docker commands are not available inside the container. Use check_webserver_status instead.',
+          },
+        ],
+      };
+    }
+
+    if (name === 'test_webserver_connectivity') {
+      const hosts = args.hosts || ['localhost'];
+      const results = [];
+
+      for (const host of hosts) {
+        const url = `http://${host}`;
+
+        // Try direct connection first
+        let result = await checkUrl(url, 3000);
+
+        // If direct connection fails and host is localhost, try host.docker.internal
+        if (!result.success && host === 'localhost') {
+          const fallbackUrl = 'http://host.docker.internal';
+          result = await checkUrl(fallbackUrl, 3000, 'localhost');
+        }
+
+        results.push({
+          host,
+          ...result,
+        });
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
+      };
+    }
+
+    throw new Error(`Unknown tool: ${name}`);
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error.message}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main().catch((error) => {
+  console.error('Server error:', error);
+  process.exit(1);
+});

@@ -159,6 +159,7 @@ RUN mkdir -p /etc/claude /opt/mcp-cache && \
 
 # Copy MCP cache files to system cache directory
 RUN cp /opt/mcp-assets/cache/claude-config-template.json /opt/mcp-cache/claude-config-template.json && \
+    cp /opt/mcp-assets/cache/claude-project-settings-template.json /opt/mcp-cache/claude-project-settings-template.json && \
     cp /opt/mcp-assets/cache/bashrc.flow /opt/mcp-cache/bashrc && \
     cp /opt/mcp-assets/cache/bashrc.root /root/.bashrc && \
     chmod 644 /opt/mcp-cache/*
@@ -194,14 +195,18 @@ RUN cp /opt/mcp-assets/config.json /opt/mcp-cache/mcp.json && \
     chmod 755 /opt/mcp-cache && \
     chmod 644 /opt/mcp-cache/*
 
-# Copy entrypoint scripts
+# Copy entrypoint scripts and wrappers
 COPY docker/bin/entrypoint.flow /docker/entrypoint.sh
 COPY docker/bin/curl-wrapper /usr/local/bin/curl-wrapper
 COPY docker/bin/curl-wrapper-install /usr/local/bin/curl-wrapper-install
+COPY docker/bin/npx-wrapper /usr/local/bin/npx-wrapper
+COPY docker/bin/npx-wrapper-install /usr/local/bin/npx-wrapper-install
 
 RUN chmod +x /docker/entrypoint.sh && \
     chmod +x /usr/local/bin/curl-wrapper && \
     chmod +x /usr/local/bin/curl-wrapper-install && \
+    chmod +x /usr/local/bin/npx-wrapper && \
+    chmod +x /usr/local/bin/npx-wrapper-install && \
     cp /opt/mcp-assets/init.sh /usr/local/bin/mcp-init && \
     chmod +x /usr/local/bin/mcp-init
 

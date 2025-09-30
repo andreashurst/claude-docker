@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Install npx wrapper
+cp /var/www/html/docker/bin/npx-wrapper /usr/local/bin/npx
+chmod +x /usr/local/bin/npx

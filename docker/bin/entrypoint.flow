@@ -108,11 +108,18 @@ if [ ! -f /home/claude/.claude.json ]; then
     sed -i "s|/var/www/html|$ROOT|g" /home/claude/.claude.json
 fi
 
-# Copy settings to project directory for persistence
+# Initialize project settings if not exists
 mkdir -p /var/www/html/.claude
-if [ -f /home/claude/.claude.json ]; then
+if [ ! -f /var/www/html/.claude/settings.local.json ]; then
+    # Use template for new projects
+    if [ -f /opt/mcp-cache/claude-project-settings-template.json ]; then
+        cp /opt/mcp-cache/claude-project-settings-template.json /var/www/html/.claude/settings.local.json
+        echo "Claude Code settings initialized from template"
+    fi
+elif [ -f /home/claude/.claude.json ]; then
+    # Update existing settings (preserve user changes)
     cp /home/claude/.claude.json /var/www/html/.claude/settings.local.json
-    echo "Settings copied to /var/www/html/.claude/settings.local.json"
+    echo "Settings updated from /home/claude/.claude.json"
 fi
 
 [ -f /opt/mcp-cache/mcp.json ] && ln -sf /opt/mcp-cache/mcp.json /home/claude/.claude/plugins/mcp.json
@@ -163,9 +170,13 @@ ln -sf /opt/mcp-cache/bashrc /home/claude/.bashrc
 echo "export NPM_CONFIG_PREFIX=/home/claude/.npm-global" >> /home/claude/.bashrc
 echo "export PATH=/home/claude/.npm-global/bin:\$PATH" >> /home/claude/.bashrc
 
-# Add curl Wrapper
+# Add curl wrapper
 cp /var/www/html/docker/bin/curl-wrapper /usr/local/bin/curl
 chmod +x /usr/local/bin/curl
+
+# Add npx wrapper (redirects "npx playwright" to "playwright")
+cp /var/www/html/docker/bin/npx-wrapper /usr/local/bin/npx
+chmod +x /usr/local/bin/npx
 
 # Switch to claude user
 cd /var/www/html
