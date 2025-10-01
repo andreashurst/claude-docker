@@ -348,6 +348,13 @@ $EXTRA_ENV
     tty: true
     restart: "no"
 
+    healthcheck:
+      test: ["CMD-SHELL", "command -v claude >/dev/null 2>&1 && echo 'OK' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
     deploy:
       resources:
         limits:

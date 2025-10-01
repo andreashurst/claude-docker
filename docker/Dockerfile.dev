@@ -64,6 +64,9 @@ RUN apk add --no-cache unzip && \
     chmod +x /usr/local/bin/bun && \
     rm -rf /root/.bun
 
+# Copy MCP files early for better caching (changes rarely)
+COPY mcp/ /opt/mcp-assets/
+
 # Install MCP SDK and available servers
 RUN npm install -g \
     @modelcontextprotocol/sdk \
@@ -89,9 +92,6 @@ RUN chmod 755 /usr/local/bin/composer && \
     echo "export PATH=/home/claude/.npm-global/bin:\$PATH" >> /etc/profile
 
 # Note: /home/claude is volume-mounted, so we don't create anything there during build
-
-# Copy MCP files to system location (owned by root)
-COPY mcp/ /opt/mcp-assets/
 
 # Create directories for MCP configuration
 RUN mkdir -p /etc/claude /opt/mcp-cache && \

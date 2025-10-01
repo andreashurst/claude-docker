@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Run installation tests
+        run: |
+          chmod +x tests/test-install.sh
+          ./tests/test-install.sh
+
+      - name: Validate MCP structure
+        run: |
+          # Check MCP files exist and are valid
+          test -f mcp/config.json
+          test -d mcp/servers
+          test -d mcp/context
+          test -d mcp/cache
+
+          # Validate JSON files
+          jq empty mcp/config.json
+          jq empty mcp/cache/claude-project-settings-template.json
+
+      - name: Check bash syntax
+        run: |
+          bash -n install.sh
+          bash -n bin/claude-dev
+          bash -n bin/claude-flow
+          bash -n bin/git-commit-ai
+          bash -n bin/claude-health
+          bash -n bin/mcp-status
+
+      - name: Test Docker builds (dev)
+        run: |
+          docker build -f docker/Dockerfile.dev -t claude-docker:test-dev .
+
+      - name: Test Docker builds (flow)
+        run: |
+          docker build -f docker/Dockerfile.flow -t claude-docker:test-flow .
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck install.sh || true
+          shellcheck bin/claude-dev || true
+          shellcheck bin/claude-flow || true
+          shellcheck bin/git-commit-ai || true
+          shellcheck bin/claude-health || true
+          shellcheck bin/mcp-status || true
+          shellcheck tests/*.sh || true
+
+      - name: Check file permissions
+        run: |
+          # Ensure scripts are executable
+          test -x bin/claude-dev
+          test -x bin/claude-flow
+          test -x bin/git-commit-ai
+          test -x bin/claude-health
+          test -x bin/mcp-status
+          test -x tests/test-install.sh
+          test -x tests/validate-mcp.sh
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'

@@ -137,14 +137,16 @@ const { chromium, firefox, webkit } = require('playwright');
 const { test, expect } = require('/usr/local/lib/node_modules/@playwright/test');
 ```
 
-**Example commands (Playwright is globally installed - use 'playwright' NOT 'npx playwright'):**
-- `playwright test` - Run all tests
+**Example commands (Both 'playwright' and 'npx playwright' work - they're aliased via wrapper):**
+- `playwright test` or `npx playwright test` - Run all tests
 - `playwright test playwright/tests/` - Run tests in specific directory
 - `playwright test --headed` - Run tests with visible browser
 - `playwright test --debug` - Run tests in debug mode
 - `playwright codegen` - Generate test code by recording actions
 - `playwright codegen https://example.com` - Generate code for specific URL
 - `playwright show-report` - View HTML test report
+
+**Note**: Playwright is globally installed (`npm install -g playwright@latest`). An npx-wrapper redirects `npx playwright` → `playwright` for compatibility with existing scripts.
 
 **REMEMBER: Never create Playwright files in the root directory. Always use the designated directories above!**
 

@@ -1,0 +1,16 @@
+#compdef claude-flow
+
+_claude_flow() {
+    local -a opts
+    opts=(
+        '--version:Show version'
+        '--stop:Stop the container'
+        '--clean:Remove container and volumes'
+        '--root:Start with root access'
+        '--help:Show help message'
+    )
+    
+    _describe 'command' opts
+}
+
+_claude_flow "$@"

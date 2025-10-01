@@ -1,0 +1,189 @@
+#!/bin/bash
+#
+# Docker Image Size Report
+# Analyzes and reports on image sizes, layers, and optimization opportunities
+#
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo "════════════════════════════════════════════════════════"
+echo "  📦 Docker Image Size Report"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# Check if images exist
+if ! docker images andreashurst/claude-docker:latest-dev --format "{{.ID}}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  claude-docker:latest-dev not found locally${NC}"
+    echo "Pull with: docker pull andreashurst/claude-docker:latest-dev"
+    echo ""
+fi
+
+if ! docker images andreashurst/claude-docker:latest-flow --format "{{.ID}}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  claude-docker:latest-flow not found locally${NC}"
+    echo "Pull with: docker pull andreashurst/claude-docker:latest-flow"
+    echo ""
+fi
+
+# Function to analyze image
+analyze_image() {
+    local image=$1
+    local name=$2
+    
+    echo -e "${CYAN}▸ $name${NC}"
+    echo ""
+    
+    # Get basic info
+    local size=$(docker images $image --format "{{.Size}}" 2>/dev/null || echo "N/A")
+    local id=$(docker images $image --format "{{.ID}}" 2>/dev/null || echo "N/A")
+    local created=$(docker images $image --format "{{.CreatedSince}}" 2>/dev/null || echo "N/A")
+    
+    echo "  Size:    $size"
+    echo "  ID:      $id"
+    echo "  Created: $created"
+    echo ""
+    
+    if [ "$id" = "N/A" ]; then
+        echo -e "  ${YELLOW}Image not available${NC}"
+        echo ""
+        return
+    fi
+    
+    # Layer analysis
+    echo "  Layers:"
+    local layer_count=$(docker history $image 2>/dev/null | tail -n +2 | wc -l)
+    echo "    Total: $layer_count"
+    
+    # Show top 5 largest layers
+    echo ""
+    echo "  Top 5 Largest Layers:"
+    docker history $image --no-trunc --format "{{.Size}}\t{{.CreatedBy}}" 2>/dev/null | \
+        grep -v "0B" | \
+        sort -rh | \
+        head -5 | \
+        awk '{printf "    %s\t%s\n", $1, substr($0, index($0,$2))}' | \
+        cut -c1-80
+    
+    echo ""
+    
+    # Check for optimization opportunities
+    echo "  Optimization Opportunities:"
+    
+    # Check for large packages
+    docker history $image 2>/dev/null | grep -i "apt-get\|apk add" | wc -l >/dev/null
+    if [ $? -eq 0 ]; then
+        echo -e "    ${GREEN}✓${NC} Package cleanup detected"
+    else
+        echo -e "    ${YELLOW}⚠${NC}  Consider adding package cleanup"
+    fi
+    
+    # Check for layer squashing opportunities
+    if [ $layer_count -gt 50 ]; then
+        echo -e "    ${YELLOW}⚠${NC}  High layer count ($layer_count) - consider squashing"
+    else
+        echo -e "    ${GREEN}✓${NC} Layer count reasonable ($layer_count)"
+    fi
+    
+    # Check for cache optimization
+    docker history $image 2>/dev/null | grep -q "COPY mcp" && \
+        echo -e "    ${GREEN}✓${NC} MCP files cached early" || \
+        echo -e "    ${YELLOW}⚠${NC}  MCP files could be cached earlier"
+    
+    echo ""
+}
+
+# Analyze both images
+analyze_image "andreashurst/claude-docker:latest-dev" "claude-docker:latest-dev"
+analyze_image "andreashurst/claude-docker:latest-flow" "claude-docker:latest-flow"
+
+# Compare with base images
+echo "════════════════════════════════════════════════════════"
+echo "  📊 Size Comparison"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+get_size_mb() {
+    local image=$1
+    local size=$(docker images $image --format "{{.Size}}" 2>/dev/null || echo "0B")
+    
+    # Convert to MB
+    if [[ $size == *GB ]]; then
+        echo $(echo "$size" | sed 's/GB//' | awk '{printf "%.0f", $1*1024}')
+    elif [[ $size == *MB ]]; then
+        echo $(echo "$size" | sed 's/MB//' | awk '{printf "%.0f", $1}')
+    else
+        echo "0"
+    fi
+}
+
+DEV_SIZE=$(get_size_mb "andreashurst/claude-docker:latest-dev")
+FLOW_SIZE=$(get_size_mb "andreashurst/claude-docker:latest-flow")
+NODE_SIZE=$(get_size_mb "node:22-alpine")
+NODE_DEBIAN_SIZE=$(get_size_mb "node:22-bookworm")
+
+echo "Base Images:"
+echo "  node:22-alpine:   ${NODE_SIZE}MB"
+echo "  node:22-bookworm: ${NODE_DEBIAN_SIZE}MB"
+echo ""
+echo "Claude Docker:"
+echo "  latest-dev:  ${DEV_SIZE}MB (+$((DEV_SIZE - NODE_SIZE))MB from base)"
+echo "  latest-flow: ${FLOW_SIZE}MB (+$((FLOW_SIZE - NODE_DEBIAN_SIZE))MB from base)"
+echo ""
+
+# Size efficiency rating
+echo "════════════════════════════════════════════════════════"
+echo "  🎯 Size Efficiency"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+rate_size() {
+    local size=$1
+    local type=$2
+    
+    if [ "$type" = "dev" ]; then
+        if [ $size -lt 1000 ]; then
+            echo -e "${GREEN}⭐⭐⭐ Excellent (<1GB)${NC}"
+        elif [ $size -lt 2000 ]; then
+            echo -e "${YELLOW}⭐⭐ Good (1-2GB)${NC}"
+        else
+            echo -e "${RED}⭐ Large (>2GB)${NC}"
+        fi
+    else
+        if [ $size -lt 2000 ]; then
+            echo -e "${GREEN}⭐⭐⭐ Excellent (<2GB)${NC}"
+        elif [ $size -lt 3000 ]; then
+            echo -e "${YELLOW}⭐⭐ Good (2-3GB)${NC}"
+        else
+            echo -e "${RED}⭐ Large (>3GB)${NC}"
+        fi
+    fi
+}
+
+echo -n "  dev image:  "
+rate_size $DEV_SIZE "dev"
+
+echo -n "  flow image: "
+rate_size $FLOW_SIZE "flow"
+
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# Recommendations
+echo "💡 Optimization Tips:"
+echo ""
+echo "1. Use multi-stage builds to reduce final image size"
+echo "2. Clean up package caches in the same RUN command"
+echo "3. Combine RUN commands to reduce layers"
+echo "4. Use .dockerignore to exclude unnecessary files"
+echo "5. Consider using distroless base images for production"
+echo ""
+echo "Run 'docker history <image>' for detailed layer analysis"
+echo ""

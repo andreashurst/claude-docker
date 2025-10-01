@@ -1,0 +1,350 @@
+#!/bin/bash
+#
+# AI-Generated Git Commit using Claude Code
+# Generates a detailed commit message following commit.html format
+#
+# Usage: git-commit-ai [options]
+#   -m, --message "msg"  Add custom message/context
+#   -n, --dry-run        Show commit message without committing
+#   -h, --help           Show this help
+#
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Options
+DRY_RUN=false
+CUSTOM_MESSAGE=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -m|--message)
+            CUSTOM_MESSAGE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: git-commit-ai [options]"
+            echo ""
+            echo "Options:"
+            echo "  -m, --message MSG    Add custom message/context"
+            echo "  -n, --dry-run        Show commit message without committing"
+            echo "  -h, --help           Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Check if we're in a git repo
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo -e "${RED}Error: Not a git repository${NC}"
+    exit 1
+fi
+
+# Check if there are changes
+if ! git diff --cached --quiet 2>/dev/null; then
+    CHANGES_STAGED=true
+else
+    CHANGES_STAGED=false
+fi
+
+if ! git diff --quiet 2>/dev/null; then
+    CHANGES_UNSTAGED=true
+else
+    CHANGES_UNSTAGED=false
+fi
+
+if [ "$CHANGES_STAGED" = false ] && [ "$CHANGES_UNSTAGED" = false ]; then
+    echo -e "${YELLOW}No changes to commit${NC}"
+    exit 0
+fi
+
+# Get git information
+echo -e "${BLUE}📊 Analyzing changes...${NC}"
+
+GIT_STATUS=$(git status --short)
+GIT_DIFF_STAGED=$(git diff --cached 2>/dev/null || echo "")
+GIT_DIFF_UNSTAGED=$(git diff 2>/dev/null || echo "")
+GIT_LOG=$(git log -5 --oneline 2>/dev/null || echo "")
+BRANCH_NAME=$(git branch --show-current)
+
+# Get TRON ID (must be set explicitly!)
+get_tron_id() {
+    # 1. Check if TRON_ID is set as environment variable
+    if [ -n "$TRON_ID" ]; then
+        echo "$TRON_ID"
+        return 0
+    fi
+
+    # 2. Try to extract from branch name (e.g., feature/1234-description, bugfix-5678, TRON-1234)
+    local branch_name=$(git branch --show-current 2>/dev/null)
+    if [ -n "$branch_name" ]; then
+        # Extract any number from branch name (4+ digits)
+        local extracted_id=$(echo "$branch_name" | grep -oE '[0-9]{4,}' | head -1)
+        if [ -n "$extracted_id" ]; then
+            echo "$extracted_id"
+            return 0
+        fi
+    fi
+
+    # 3. Check if .claude/.tron-id file exists
+    local tron_file=".claude/.tron-id"
+    if [ -f "$tron_file" ]; then
+        local stored_id=$(cat "$tron_file" | tr -d '\n\r ')
+        if [ -n "$stored_id" ]; then
+            echo "$stored_id"
+            return 0
+        fi
+    fi
+
+    # 4. ERROR - No TRON ID found!
+    return 1
+}
+
+# Try to get TRON ID
+if ! TRON_ID=$(get_tron_id); then
+    # No TRON-ID found - ask user
+    echo -e "${YELLOW}⚠️  No TRON-ID found${NC}"
+    echo ""
+    echo "Current branch: ${BRANCH_NAME}"
+    echo ""
+    echo "Please enter TRON-ID (e.g., 1234):"
+    read -p "> " TRON_ID
+
+    # Trim whitespace
+    TRON_ID=$(echo "$TRON_ID" | tr -d ' \t\n\r')
+
+    if [ -z "$TRON_ID" ]; then
+        echo -e "${RED}Error: TRON-ID cannot be empty${NC}"
+        exit 1
+    fi
+
+    # Ask if we should save it
+    echo ""
+    echo -e "Save TRON-ID '${TRON_ID}' to .claude/.tron-id file for future commits? (y/n)"
+    read -p "> " save_choice
+
+    if [ "$save_choice" = "y" ] || [ "$save_choice" = "Y" ]; then
+        mkdir -p .claude
+        echo "$TRON_ID" > .claude/.tron-id
+        echo -e "${GREEN}✓ Saved to .claude/.tron-id${NC}"
+    fi
+fi
+
+COMMIT_ID="TRON-${TRON_ID}"
+
+# Create temporary file for prompt
+PROMPT_FILE=$(mktemp)
+cat > "$PROMPT_FILE" << 'PROMPT_END'
+You are a Git commit message generator following a specific format.
+
+# COMMIT FORMAT (from commit.html):
+```
+# [Title] - YYYY-MM-DD
+
+## Übersicht
+[Brief overview in German]
+
+## Hauptänderungen
+
+### 1. [Category 1]
+**Problem**: [Description]
+
+**Lösung**:
+- [Change 1]
+- [Change 2]
+
+### 2. [Category 2]
+**Problem**: [Description]
+
+**Lösung**:
+- [Change 1]
+- [Change 2]
+
+## Geänderte Dateien
+
+1. `path/to/file`
+   - [What changed]
+   - [Why it changed]
+
+## Vorteile
+
+### Für Entwickler
+- ✅ [Advantage 1]
+- ✅ [Advantage 2]
+
+### Für Claude Code
+- ✅ [Advantage 1]
+
+## Notizen
+- [Any additional notes]
+```
+
+# RULES:
+1. Use German for descriptions ("Übersicht", "Hauptänderungen", etc.)
+2. Use KISS principle - Keep It Simple, Stupid
+3. Group changes by category (Features, Bugfixes, Refactoring, Documentation, etc.)
+4. List all changed files with brief explanation
+5. Focus on WHAT changed and WHY (not HOW)
+6. Use bullet points and checkmarks (✅)
+7. Be concise but complete
+8. Output ONLY the commit message, no preamble or explanation
+
+# CURRENT GIT STATUS:
+```
+PROMPT_END
+
+echo "$GIT_STATUS" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+echo "" >> "$PROMPT_FILE"
+echo "# STAGED CHANGES (will be committed):" >> "$PROMPT_FILE"
+echo '```diff' >> "$PROMPT_FILE"
+echo "$GIT_DIFF_STAGED" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+echo "" >> "$PROMPT_FILE"
+
+if [ -n "$GIT_DIFF_UNSTAGED" ]; then
+    echo "# UNSTAGED CHANGES (reference):" >> "$PROMPT_FILE"
+    echo '```diff' >> "$PROMPT_FILE"
+    echo "$GIT_DIFF_UNSTAGED" >> "$PROMPT_FILE"
+    echo '```' >> "$PROMPT_FILE"
+    echo "" >> "$PROMPT_FILE"
+fi
+
+echo "# RECENT COMMITS (for context):" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+echo "$GIT_LOG" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+echo "" >> "$PROMPT_FILE"
+echo "# BRANCH: $BRANCH_NAME" >> "$PROMPT_FILE"
+echo "# COMMIT ID: $COMMIT_ID" >> "$PROMPT_FILE"
+echo "" >> "$PROMPT_FILE"
+
+if [ -n "$CUSTOM_MESSAGE" ]; then
+    echo "# CUSTOM CONTEXT: $CUSTOM_MESSAGE" >> "$PROMPT_FILE"
+    echo "" >> "$PROMPT_FILE"
+fi
+
+echo "Generate a commit message in the format above. Start with markdown, not with 'Here is' or similar preamble. Use today's date: $(date +%Y-%m-%d)" >> "$PROMPT_FILE"
+
+# Create temporary output file
+OUTPUT_FILE=$(mktemp)
+
+# Use Claude Code via echo to stdin
+echo -e "${BLUE}🤖 Generating commit message with Claude Code...${NC}"
+
+# Call claude with timeout (max 60 seconds)
+TIMEOUT_SECONDS=60
+if ! timeout $TIMEOUT_SECONDS bash -c "echo \"\$(cat $PROMPT_FILE)\" | claude --no-input 2>/dev/null > \"$OUTPUT_FILE\""; then
+    CLAUDE_EXIT=$?
+
+    # Check if it was a timeout (exit code 124)
+    if [ $CLAUDE_EXIT -eq 124 ]; then
+        echo -e "${RED}Error: Claude Code timeout (>${TIMEOUT_SECONDS}s)${NC}"
+        echo ""
+        echo "This might happen if:"
+        echo "  - Claude Code is busy with another task"
+        echo "  - Network issues"
+        echo "  - Very large diffs"
+        echo ""
+        read -p "Retry? (y/n) " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${BLUE}🔄 Retrying...${NC}"
+            if ! timeout $TIMEOUT_SECONDS bash -c "cat \"$PROMPT_FILE\" | /usr/local/bin/claude --no-input 2>/dev/null > \"$OUTPUT_FILE\""; then
+                echo -e "${RED}Error: Retry failed${NC}"
+                rm -f "$PROMPT_FILE" "$OUTPUT_FILE"
+                exit 1
+            fi
+        else
+            rm -f "$PROMPT_FILE" "$OUTPUT_FILE"
+            exit 1
+        fi
+    else
+        # Try fallback path
+        if ! timeout $TIMEOUT_SECONDS bash -c "cat \"$PROMPT_FILE\" | /usr/local/bin/claude --no-input 2>/dev/null > \"$OUTPUT_FILE\""; then
+            echo -e "${RED}Error: Failed to generate commit message${NC}"
+            echo "Is Claude Code running?"
+            rm -f "$PROMPT_FILE" "$OUTPUT_FILE"
+            exit 1
+        fi
+    fi
+fi
+
+# Read commit message
+COMMIT_MESSAGE=$(cat "$OUTPUT_FILE")
+
+# Clean up
+rm -f "$PROMPT_FILE" "$OUTPUT_FILE"
+
+if [ -z "$COMMIT_MESSAGE" ]; then
+    echo -e "${RED}Error: Generated commit message is empty${NC}"
+    exit 1
+fi
+
+# Add commit ID to message
+COMMIT_MESSAGE="$COMMIT_MESSAGE
+
+---
+Commit-ID: $COMMIT_ID
+Generated: $(date '+%Y-%m-%d %H:%M:%S')
+🤖 AI-Generated with Claude Code"
+
+# Show commit message
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  Generated Commit Message${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
+echo ""
+echo "$COMMIT_MESSAGE"
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
+echo ""
+
+# Save to commit.html
+COMMIT_FILE="commit.html"
+if [ "$DRY_RUN" = false ]; then
+    echo "$COMMIT_MESSAGE" > "$COMMIT_FILE"
+    echo -e "${GREEN}✓ Saved to $COMMIT_FILE${NC}"
+fi
+
+# Dry run or commit?
+if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}Dry run - no commit created${NC}"
+    exit 0
+fi
+
+# Stage all changes if there are unstaged changes
+if [ "$CHANGES_UNSTAGED" = true ]; then
+    echo -e "${BLUE}📦 Staging all changes...${NC}"
+    git add -A
+fi
+
+# Create commit with first line as summary
+COMMIT_SUMMARY=$(echo "$COMMIT_MESSAGE" | head -n 1)
+
+echo -e "${BLUE}💾 Creating commit...${NC}"
+git commit -m "$COMMIT_SUMMARY" -m "$COMMIT_MESSAGE" --no-verify
+
+echo ""
+echo -e "${GREEN}✅ Commit created successfully!${NC}"
+echo -e "${BLUE}Commit ID: $COMMIT_ID${NC}"
+echo ""
+echo -e "View with: ${YELLOW}git show${NC}"
+echo -e "Edit with:  ${YELLOW}git commit --amend${NC}"
+echo -e "Push with:  ${YELLOW}git push${NC}"
+echo ""

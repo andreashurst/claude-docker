@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.log
+*.cache
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Local overrides
+docker-compose.override.yml
+.env.local
+
+# Documentation (not needed in image)
+*.md
+!README.md
+
+# Tests (not needed in image)
+tests/
+
+# Build artifacts
+node_modules/
+.npm/
+.cache/
+
+# User data
+.claude*
+.hive-mind/
+.swarm/
+memory/
+coordination/
+
+# Backups
+.backup/
+*.bak

@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# Claude Container Health Check
+# Checks if containers are running and healthy
+#
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Check if docker is available
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}❌ Docker not found${NC}"
+    exit 1
+fi
+
+# Check docker daemon
+if ! docker info &> /dev/null; then
+    echo -e "${RED}❌ Docker daemon not running${NC}"
+    exit 1
+fi
+
+echo "════════════════════════════════════════════════════════"
+echo "  🏥 Claude Docker Health Check"
+echo "════════════════════════════════════════════════════════"
+echo ""
+
+# Function to check container health
+check_container() {
+    local name=$1
+    local container_id=$(docker ps -q --filter "name=${name}" 2>/dev/null)
+
+    if [ -z "$container_id" ]; then
+        echo -e "${YELLOW}⚠️  ${name}${NC}"
+        echo "   Status: Not running"
+        echo ""
+        return 1
+    fi
+
+    local status=$(docker inspect --format='{{.State.Status}}' $container_id 2>/dev/null)
+    local health=$(docker inspect --format='{{.State.Health.Status}}' $container_id 2>/dev/null)
+    local uptime=$(docker inspect --format='{{.State.StartedAt}}' $container_id 2>/dev/null)
+    local image=$(docker inspect --format='{{.Config.Image}}' $container_id 2>/dev/null)
+
+    echo -e "${GREEN}✅ ${name}${NC}"
+    echo "   Status: ${status}"
+    [ "$health" != "<no value>" ] && echo "   Health: ${health}"
+    echo "   Image: ${image}"
+    echo "   Started: ${uptime}"
+    echo "   ID: ${container_id}"
+    echo ""
+    return 0
+}
+
+# Check both containers
+dev_exists=0
+flow_exists=0
+
+check_container "claude-dev" && dev_exists=1
+check_container "claude-flow" && flow_exists=1
+
+# Summary
+echo "════════════════════════════════════════════════════════"
+if [ $dev_exists -eq 0 ] && [ $flow_exists -eq 0 ]; then
+    echo -e "${YELLOW}No Claude containers running${NC}"
+    echo ""
+    echo "Start with:"
+    echo "  claude-dev    # Basic development environment"
+    echo "  claude-flow   # Advanced testing environment"
+else
+    echo -e "${GREEN}Health check complete${NC}"
+fi
+echo "════════════════════════════════════════════════════════"
